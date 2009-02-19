@@ -458,12 +458,37 @@ class SIPC():
             raise PyFetionSocketError(e.read())
 
     def __tcp_recv(self):
+        """read 1024 bytes first, if there's still more data, read left data.
+           get length from header :
+           L: 1022 
+        """
+        total_data = []
+        size = 1024
         try:
-            data = self.__sock.recv(4096)
+            while True:
+                data = self.__sock.recv(size)
+                total_data.append(data)
+                if "\r\n\r\n" == data[-4:]:
+                    break
+                elif re.search("L: (\d+)",data):
+                    match = re.search("L: (\d+)",data)
+                    body_len = int(match.group(1))
+                    header_len =  match.end() + 4
+                    if len(data) == body_len + header_len:
+                        break
+                    else:
+                        size = body_len + header_len - len(data)
+                        self.__sock.settimeout(2)
+                        data = self.__sock.recv(size)
+                        total_data.append(data)
+                        break
+                else:
+                    raise PyFetionSocketError("SHOULD NOT happened.")
+                    
         except socket.error,e:
             self.__sock.close()
             raise PyFetionSocketError(e.read())
-        return data
+        return "".join(total_data)
 
 
 
@@ -517,14 +542,14 @@ def d_print(vars=(),namespace=[],msg=""):
 
 def main(argv=None):
     try:
-        phone = PyFetion("13888888888","123456","TCP")
+        phone = PyFetion("138888888","123456","TCP")
     except PyFetionInfoError,e:
         print "corrent your mobile NO. and password"
         return -1
     phone.login()
     #phone.get_offline_msg()
     #phone.add("138888888")
-    phone.get_info("13630220457")
+    #phone.get_info("")
     phone.get_contact_list()
     #phone.send_sms("Hello, ",long=True)
     #phone.send_schedule_sms("请注意，这个是定时短信",time)
