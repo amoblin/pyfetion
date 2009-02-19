@@ -108,8 +108,12 @@ class PyFetion():
         self.__SIPC.get("INFO","GetPersonalInfo")
         self.__SIPC.send()
 
-    def get_info(self,who):
-        """get """
+    def get_info(self,who=None):
+        """get one's contact info.
+           who should be uri.
+           """
+        if who == None:
+            who = self.__uri
         self.__SIPC.get("INFO","GetContactsInfo",who)
         response = self.__SIPC.send()
         return response
@@ -542,16 +546,17 @@ def d_print(vars=(),namespace=[],msg=""):
 
 def main(argv=None):
     try:
-        phone = PyFetion("138888888","123456","TCP")
+        phone = PyFetion("13888888888","123456","TCP")
     except PyFetionInfoError,e:
         print "corrent your mobile NO. and password"
         return -1
     phone.login()
     #phone.get_offline_msg()
     #phone.add("138888888")
-    #phone.get_info("")
-    phone.get_contact_list()
-    #phone.send_sms("Hello, ",long=True)
+    phone.get_info()
+    #phone.get_personal_info()
+    #phone.get_contact_list()
+    #phone.send_sms("Hello, ","13630220457",long=True)
     #phone.send_schedule_sms("请注意，这个是定时短信",time)
     #time_format = "%Y-%m-%d %H:%M:%S"
     #time.strftime(time_format,time.gmtime())
