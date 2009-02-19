@@ -142,7 +142,11 @@ class PyFetion():
                         break
         return who
 
-    def send_msg(self,to,msg,flag="SENDMSG"):
+    def send_msg(self,msg,to,flag="SENDMSG"):
+        if not to:
+            to = self.__uri
+        else:
+            to = self.get_uri(to)
         self.__SIPC.get(flag,to,msg)
         response = self.__SIPC.send()
         code = self.__SIPC.get_code(response)
@@ -152,14 +156,10 @@ class PyFetion():
             d_print(('code',),locals())
 
     def send_sms(self,msg,to=None,long=False):
-        if not to:
-            to = self.__uri
-        else:
-            to = self.get_uri(to)
         if long:
-            self.send_msg(to,msg,"SENDCatSMS")
+            self.send_msg(msg,to,"SENDCatSMS")
         else:
-            self.send_msg(to,msg,"SENDSMS")
+            self.send_msg(msg,to,"SENDSMS")
 
     def send_schedule_sms(self,msg,time,to=None):
         if not to:
@@ -553,10 +553,11 @@ def main(argv=None):
     phone.login()
     #phone.get_offline_msg()
     #phone.add("138888888")
-    phone.get_info()
+    #phone.get_info()
     #phone.get_personal_info()
     #phone.get_contact_list()
-    #phone.send_sms("Hello, ","13630220457",long=True)
+    #phone.send_sms("Hello cocobear.info ","138888",long=True)
+    phone.send_msg("cocobear.info","1388888")
     #phone.send_schedule_sms("请注意，这个是定时短信",time)
     #time_format = "%Y-%m-%d %H:%M:%S"
     #time.strftime(time_format,time.gmtime())
