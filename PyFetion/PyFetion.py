@@ -125,17 +125,23 @@ class PyFetion():
         return response
 
     def get_uri(self,who):
-        if who == self.mobile_no:
+        if who == self.mobile_no or who in self.__uri:
             who = self.__uri
+
         if not who.startswith("sip"):
             l = self.get_contact_list()
             all = re.findall('uri="(.+?)" ',l)
             #Get uri from contact list, compare one by one
-            #I can't get other more effect way
+            #I can't get other more effect way.
             for uri in all:
+                #who is the fetion number.
+                if who in uri:
+                    return uri
                 ret = self.get_info(uri)
                 no = re.findall('mobile-no="(.+?)" ',ret)
+                #if people show you his mobile number.
                 if no:
+                    #who is the mobile number.
                     if no[0] == who:
                         d_print(('who',),locals())
                         who = uri
@@ -143,6 +149,10 @@ class PyFetion():
         return who
 
     def send_msg(self,msg,to,flag="SENDMSG"):
+        """see send_sms.
+           if someone's fetion is offline, msg will send to phone,
+           the same as send_sms.
+           """
         if not to:
             to = self.__uri
         else:
@@ -156,6 +166,10 @@ class PyFetion():
             d_print(('code',),locals())
 
     def send_sms(self,msg,to=None,long=False):
+        """send sms to someone, if to is None, send self.
+           if long is True, send long sms.(Your phone should support.)
+           to can be mobile number or fetion number
+           """
         if long:
             self.send_msg(msg,to,"SENDCatSMS")
         else:
@@ -556,8 +570,8 @@ def main(argv=None):
     #phone.get_info()
     #phone.get_personal_info()
     #phone.get_contact_list()
-    #phone.send_sms("Hello cocobear.info ","138888",long=True)
-    phone.send_msg("cocobear.info","1388888")
+    phone.send_sms("Hello cocobear.info ","782079728")
+    #phone.send_msg("cocobear.info","567455054")
     #phone.send_schedule_sms("请注意，这个是定时短信",time)
     #time_format = "%Y-%m-%d %H:%M:%S"
     #time.strftime(time_format,time.gmtime())
