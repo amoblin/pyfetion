@@ -5,8 +5,6 @@
 #Version:0.1
 
 import urllib2
-import urllib
-import cookielib
 import sys,re
 import binascii
 import hashlib
@@ -35,6 +33,12 @@ class PyFetionException(Exception):
 class PyFetionInfoError(PyFetionException):
     """Phone number or password incomplete"""
 
+class PyFetionSocketError(PyFetionException):
+    """any socket error"""
+    def __init__(self, msg):
+        self.PyFetion_error = msg
+        self.args = ( msg)
+
 class PyFetionResponseException(PyFetionException):
     """Base class for all exceptions that include SIPC/HTTP error code.
     """
@@ -53,6 +57,7 @@ class PyFetionRegisterError(PyFetionResponseException):
 class PyFetionSendError(PyFetionResponseException):
     """Send SMS error
     """
+
 
 class PyFetion():
 
@@ -104,6 +109,7 @@ class PyFetion():
         self.__SIPC.send()
 
     def get_info(self,who):
+        """get """
         self.__SIPC.get("INFO","GetContactsInfo",who)
         response = self.__SIPC.send()
         return response
@@ -226,8 +232,7 @@ class PyFetion():
             ret = self.__http_send(url,login=True)
         except PyFetionAuthError,e:
             d_print(('e',),locals())
-            print "Your password error, or your mobile NO. don't support fetion"
-            sys.exit(-1)
+            raise PyFetionAuthError(401,"Your password error, or your mobile NO. don't support fetion")
 
         header = str(ret.info())
         body   = ret.read()
@@ -435,18 +440,14 @@ class SIPC():
             self.__sock = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
         except socket.error,e:
             s = None
-            print e.read()
-            #Should return -1 NOT just exit
-            sys.exit(-1)
+            raise PyFetionSocketError(e.read())
         (host,port) = tuple(self.__sipc_proxy.split(":"))
         port = int(port)
         try:
             self.__sock.connect((host,port))
         except socket.error,e:
             self.__sock.close()
-            self.__sock = None
-            print e.read()
-            sys.exit(-1)
+            raise PyFetionSocketError(e.read())
 
 
     def __tcp_send(self,msg):
@@ -454,16 +455,14 @@ class SIPC():
             self.__sock.send(msg)
         except socket.error,e:
             self.__sock.close()
-            print e.read()
-            sys.exit(-1)
+            raise PyFetionSocketError(e.read())
 
     def __tcp_recv(self):
         try:
             data = self.__sock.recv(4096)
         except socket.error,e:
             self.__sock.close()
-            print e.read()
-            sys.exit(-1)
+            raise PyFetionSocketError(e.read())
         return data
 
 
@@ -518,16 +517,16 @@ def d_print(vars=(),namespace=[],msg=""):
 
 def main(argv=None):
     try:
-        phone = PyFetion("138888888","123456","TCP")
+        phone = PyFetion("13888888888","123456","TCP")
     except PyFetionInfoError,e:
         print "corrent your mobile NO. and password"
         return -1
     phone.login()
     #phone.get_offline_msg()
     #phone.add("138888888")
-    #phone.get_info()
-    #phone.get_contact_list()
-    phone.send_sms("Hello, ",long=True)
+    phone.get_info("13630220457")
+    phone.get_contact_list()
+    #phone.send_sms("Hello, ",long=True)
     #phone.send_schedule_sms("请注意，这个是定时短信",time)
     #time_format = "%Y-%m-%d %H:%M:%S"
     #time.strftime(time_format,time.gmtime())
