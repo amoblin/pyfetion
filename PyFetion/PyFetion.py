@@ -58,7 +58,6 @@ class PyFetionSendError(PyFetionResponseException):
     """Send SMS error
     """
 
-
 class PyFetion():
 
     __config_data = ""
@@ -205,25 +204,6 @@ class PyFetion():
         else:
             raise PyFetionRegisterError(code,response)
 
-    def __http_send(self,url,body="",exheaders="",login=False):
-        headers = {
-                   'User-Agent':'IIC2.0/PC 3.2.0540',
-                  }
-        headers.update(exheaders)
-        request = urllib2.Request(url,headers=headers,data=body)
-        try:
-            conn = urllib2.urlopen(request)
-        except urllib2.URLError, e:
-            code = e.code
-            msg = e.read()
-            if code == 401 or code == 404:
-                if login:
-                    d_print(('code','text'),locals())
-                    raise PyFetionAuthError(code,msg)
-            return -1
-
-        return conn
-
 
     def __get_system_config(self):
         global FetionConfigURL
@@ -231,7 +211,7 @@ class PyFetion():
         url = FetionConfigURL
         body = FetionConfigXML % self.mobile_no
         d_print(('url','body'),locals())
-        self.__config_data = self.__http_send(url,body).read()
+        self.__config_data = http_send(url,body).read()
             
 
     def __set_system_config(self):
@@ -246,11 +226,7 @@ class PyFetion():
     def __get_uri(self):
         url = self.__sipc_url+"?mobileno="+self.mobile_no+"&pwd="+self.passwd
         d_print(('url',),locals())
-        try:
-            ret = self.__http_send(url,login=True)
-        except PyFetionAuthError,e:
-            d_print(('e',),locals())
-            raise PyFetionAuthError(401,"Your password error, or your mobile NO. don't support fetion")
+        ret = http_send(url,login=True)
 
         header = str(ret.info())
         body   = ret.read()
@@ -319,7 +295,7 @@ class SIPC():
             else:
                 t = 's'
             url = self.__http_tunnel+"?t=%s&i=%s" % (t,self.__seq)
-            response = self.__http_send(url,content,self.__exheaders).read()
+            response = http_send(url,content,self.__exheaders).read()
             self.__seq+=1
             response = self.__sendSIPP()
             #This line will enhance the probablity of success.
@@ -428,30 +404,10 @@ class SIPC():
     def __sendSIPP(self):
         body = FetionSIPP
         url = self.__http_tunnel+"?t=s&i=%s" % self.__seq
-        response = self.__http_send(url,body,self.__exheaders).read()
+        response = http_send(url,body,self.__exheaders).read()
         d_print(('response',),locals())
         self.__seq+=1
         return response
-
-    def __http_send(self,url,body="",exheaders="",login=False):
-        headers = {
-                   'User-Agent':'IIC2.0/PC 3.2.0540',
-                  }
-        headers.update(exheaders)
-        request = urllib2.Request(url,headers=headers,data=body)
-        try:
-            conn = urllib2.urlopen(request)
-        except urllib2.URLError, e:
-            code = e.code
-            msg = e.read()
-            d_print(('code','text'),locals())
-            if code == 401 or code == 404:
-                if login:
-                    raise PyFetionAuthError(code,msg)
-            return -1
-
-        return conn
-
 
     def __tcp_init(self):
         try:
@@ -542,6 +498,25 @@ class SIPC():
         salt = 'wzm\x03'
         src  = salt+sha1(self.passwd).digest()
         return "777A6D03"+sha1(src).hexdigest().upper()
+
+def http_send(url,body="",exheaders="",login=False):
+    headers = {
+               'User-Agent':'IIC2.0/PC 3.2.0540',
+              }
+    headers.update(exheaders)
+    request = urllib2.Request(url,headers=headers,data=body)
+    try:
+        conn = urllib2.urlopen(request)
+    except urllib2.URLError, e:
+        code = e.code
+        msg = e.read()
+        if code == 401 or code == 404:
+            if login:
+                d_print(('code','text'),locals())
+                raise PyFetionAuthError(code,msg)
+        return -1
+
+    return conn
 
 
 def d_print(vars=(),namespace=[],msg=""):
