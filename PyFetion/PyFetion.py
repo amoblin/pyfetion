@@ -24,7 +24,7 @@ FetionConfigURL = "http://nav.fetion.com.cn/nav/getsystemconfig.aspx"
 
 FetionConfigXML = """<config><user mobile-no="%s" /><client type="PC" version="3.2.0540" platform="W5.1" /><servers version="0" /><service-no version="0" /><parameters version="0" /><hints version="0" /><http-applications version="0" /><client-config version="0" /></config>"""
 
-FetionLoginXML = """<args><device type="PC" version="0" client-version="3.2.0540" /><caps value="simple-im;im-session;temp-group;personal-group" /><events value="contact;permission;system-message;personal-group" /><user-info attributes="all" /><presence><basic value="400" desc="" /></presence></args>"""
+FetionLoginXML = """<args><device type="PC" version="0" client-version="3.2.0540" /><caps value="simple-im;im-session;temp-group;personal-group" /><events value="contact;permission;system-message;personal-group" /><user-info attributes="all" /><presence><basic value="%s" desc="" /></presence></args>"""
 
 debug = True
 
@@ -81,8 +81,9 @@ class PyFetion():
         self.__get_system_config()
         self.__set_system_config()
 
-    def login(self):
+    def login(self,see=False):
         (self.__ssic,self.__domain) = self.__get_uri()
+        self.__see = see
         try:
             self.__register(self.__ssic,self.__domain)
         except PyFetionRegisterError,e:
@@ -196,7 +197,7 @@ class PyFetion():
             return id
 
     def __register(self,ssic,domain):
-        self.__SIPC = SIPC(self.__sid,self.__domain,self.passwd,self.login_type,self.__http_tunnel,self.__ssic,self.__sipc_proxy)
+        self.__SIPC = SIPC(self.__sid,self.__domain,self.passwd,self.login_type,self.__http_tunnel,self.__ssic,self.__sipc_proxy,self.__see)
         response = ""
         for step in range(1,3):
                 self.__SIPC.get("REG",step,response)
@@ -254,15 +255,16 @@ class SIPC():
     header = ""
     body = ""
     content = ""
-    code = ''
+    code = ""
     ver  = "SIP-C/2.0"
     ID   = 1
     sid  = ""
     domain = ""
     passwd = ""
+    see    = True
     __http_tunnel = ""
 
-    def __init__(self,sid,domain,passwd,login_type,http_tunnel,ssic,sipc_proxy):
+    def __init__(self,sid,domain,passwd,login_type,http_tunnel,ssic,sipc_proxy,see):
         self.sid = sid
         self.domain = domain
         self.passwd = passwd
@@ -271,6 +273,7 @@ class SIPC():
         self.sid = sid
         self.__seq = 1
         self.__sipc_proxy = sipc_proxy
+        self.__see = see
         if self.login_type == "HTTP":
             self.__http_tunnel = http_tunnel
             self.__ssic = ssic
@@ -333,7 +336,10 @@ class SIPC():
     def get(self,cmd,arg,ret="",extra=""):
         body = ret
         if cmd == "REG":
-            body = FetionLoginXML
+            if self.__see:
+                body = FetionLoginXML % "400"
+            else:
+                body = FetionLoginXML % "0"
             self.init('R')
             if arg == 1:
                 pass
@@ -539,7 +545,7 @@ def d_print(vars=(),namespace=[],msg=""):
 
 def main(argv=None):
     try:
-        phone = PyFetion("13888888888","123456","TCP")
+        phone = PyFetion("1388888888","123456","TCP")
     except PyFetionInfoError,e:
         print "corrent your mobile NO. and password"
         return -1
@@ -549,7 +555,7 @@ def main(argv=None):
     #phone.get_info()
     #phone.get_personal_info()
     #phone.get_contact_list()
-    phone.send_sms("Hello cocobear.info ","1388888888")
+    phone.send_sms("Hello cocobear.info ","567455054")
     #phone.send_msg("cocobear.info","567455054")
     #phone.send_schedule_sms("请注意，这个是定时短信",time)
     #time_format = "%Y-%m-%d %H:%M:%S"
