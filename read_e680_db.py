@@ -2,6 +2,8 @@
 # -*- coding=utf-8 -*-
 #Using GPL v2
 #Author: cocobear.cn@gmail.com
+#Modifed by cocobear at 09.02.20
+#write to file(UTF-8) instead directly to stdio
 
 """
 获取数据库名:
@@ -13,6 +15,7 @@ db.keys()
 import bsddb
 import struct
 import time
+import sys
 
 db_file = 'native.db'    
 #databases中tuple分别表示:
@@ -25,8 +28,8 @@ db_file = 'native.db'
 
 
 databases = [('姓名','780_contact_table.first name',1),('手机1','780_contact_table.mobile1',2),('手机2','780_contact_table.mobile2',2),('家庭1','780_contact_table.home1',2),('家庭2','780_contact_table.home2',2),('工作1','780_contact_table.work1',2),('工作1','780_contact_table.work1',2),]
-databases = [('姓名','780_contact_table.first name',1),('手机1','780_contact_table.mobile1',2)]
-databases = [('发送人','ems_table_in_flash.cmn_fld_from_name',1),('主题','ems_table_in_flash.cmn_fld_subject',1),('接收人','ems_table_in_flash.cmn_fld_to_name',1),('时间','ems_table_in_flash.cmn_fld_time_msg_reach_phone',3),]
+#databases = [('姓名','780_contact_table.first name',1),('手机1','780_contact_table.mobile1',2)]
+#databases = [('发送人','ems_table_in_flash.cmn_fld_from_name',1),('主题','ems_table_in_flash.cmn_fld_subject',1),('接收人','ems_table_in_flash.cmn_fld_to_name',1),('时间','ems_table_in_flash.cmn_fld_time_msg_reach_phone',3),]
 out = []
 
 for database in databases:
@@ -41,6 +44,9 @@ for database in databases:
     db.close()
 
 #格式化输出
+f = file("out.txt","w")
+sys.stdout = f
+
 for i in databases:
     print i[0]+":",
 print
@@ -56,13 +62,14 @@ for i in range(len(out[0])):
             print temp
         elif databases[j][2] == 1:
             #使用utf16进行解码
-            print out[j][i][0].decode('utf16'),
+            print out[j][i][0][:-2].decode('utf16').encode('utf8')+",",
         elif databases[j][2] == 2:
             #数字逆序输出
-            print out[j][i][0].decode('utf16')[::-1],
+            print out[j][i][0][:-2].decode('utf16')[::-1].encode('utf8')+",",
         elif databases[j][2] == 3:
             #日期输出
             s = struct.unpack('<L',out[j][i][0])[0]
             print time.strftime("%Y-%m-%d",time.localtime(s))
     print
 
+f.close()
