@@ -4,6 +4,7 @@
 #Author: cocobear.cn@gmail.com
 #Version:0.1
 
+import urllib
 import urllib2
 import sys,re
 import binascii
@@ -227,7 +228,7 @@ class PyFetion():
         self.__http_tunnel= http_tunnel
 
     def __get_uri(self):
-        url = self.__sipc_url+"?mobileno="+self.mobile_no+"&pwd="+self.passwd
+        url = self.__sipc_url+"?mobileno="+self.mobile_no+"&pwd="+urllib.quote(self.passwd)
         d_print(('url',),locals())
         ret = http_send(url,login=True)
 
@@ -538,7 +539,7 @@ def d_print(vars=(),namespace=[],msg=""):
 
 def main(argv=None):
     try:
-        phone = PyFetion("138888888","123456","TCP")
+        phone = PyFetion("13888888888","123456","TCP")
     except PyFetionInfoError,e:
         print "corrent your mobile NO. and password"
         return -1
