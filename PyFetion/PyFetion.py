@@ -143,9 +143,8 @@ class PyFetion():
                     #who is the mobile number.
                     if no[0] == who:
                         d_print(('who',),locals())
-                        who = uri
-                        break
-        return who
+                        return uri
+        return None
 
     def send_msg(self,msg,to,flag="SENDMSG"):
         """see send_sms.
@@ -156,6 +155,8 @@ class PyFetion():
             to = self.__uri
         else:
             to = self.get_uri(to)
+            if not to:
+                return -1
         self.__SIPC.get(flag,to,msg)
         response = self.__SIPC.send()
         code = self.__SIPC.get_code(response)
@@ -179,6 +180,8 @@ class PyFetion():
             to = self.__uri
         else:
             to = self.get_uri(to)
+            if not to:
+                return -1
 
         self.__SIPC.get("SSSetScheduleSms",msg,time,to)
         response = self.__SIPC.send()
@@ -535,7 +538,7 @@ def d_print(vars=(),namespace=[],msg=""):
 
 def main(argv=None):
     try:
-        phone = PyFetion("13630220457","113322","TCP")
+        phone = PyFetion("138888888","123456","TCP")
     except PyFetionInfoError,e:
         print "corrent your mobile NO. and password"
         return -1
@@ -545,7 +548,7 @@ def main(argv=None):
     #phone.get_info()
     #phone.get_personal_info()
     #phone.get_contact_list()
-    phone.send_sms("Hello cocobear.info ","567455054")
+    phone.send_sms("Hello cocobear.info ","1388888888")
     #phone.send_msg("cocobear.info","567455054")
     #phone.send_schedule_sms("请注意，这个是定时短信",time)
     #time_format = "%Y-%m-%d %H:%M:%S"
