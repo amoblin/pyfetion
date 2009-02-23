@@ -127,25 +127,31 @@ class PyFetion():
 
     def get_uri(self,who):
         if who == self.mobile_no or who in self.__uri:
-            who = self.__uri
+            return self.__uri
 
-        if not who.startswith("sip"):
-            l = self.get_contact_list()
-            all = re.findall('uri="(.+?)" ',l)
-            #Get uri from contact list, compare one by one
-            #I can't get other more effect way.
-            for uri in all:
-                #who is the fetion number.
-                if who in uri:
+        if who.startswith("sip"):
+            return who
+        #Fetion now can send use mobile number(09.02.23)
+        #like tel: 13888888888
+        if len(who) == 11:
+            return "tel:"+who
+
+        l = self.get_contact_list()
+        all = re.findall('uri="(.+?)" ',l)
+        #Get uri from contact list, compare one by one
+        #I can't get other more effect way.
+        for uri in all:
+            #who is the fetion number.
+            if who in uri:
+                return uri
+            ret = self.get_info(uri)
+            no = re.findall('mobile-no="(.+?)" ',ret)
+            #if people show you his mobile number.
+            if no:
+                #who is the mobile number.
+                if no[0] == who:
+                    d_print(('who',),locals())
                     return uri
-                ret = self.get_info(uri)
-                no = re.findall('mobile-no="(.+?)" ',ret)
-                #if people show you his mobile number.
-                if no:
-                    #who is the mobile number.
-                    if no[0] == who:
-                        d_print(('who',),locals())
-                        return uri
         return None
 
     def send_msg(self,msg,to,flag="SENDMSG"):
@@ -389,7 +395,7 @@ class SIPC():
             if arg == "GetPersonalInfo":
                 body = '<args><personal attributes="all" /><services version="" attributes="all" /><config version="33" attributes="all" /><mobile-device attributes="all" /></args>'
             elif arg == "GetContactList":
-                body = '<args><contacts attributes="all"><buddies attributes="all" /></contacts></args>'
+                body = '<args><contacts><buddy-lists /><buddies attributes="all" /><mobile-buddies attributes="all" /><chat-friends /><blacklist /></contacts></args>'
             elif arg == "GetContactsInfo":
                 body = '<args><contacts attributes="all"><contact uri="%s" /></contacts></args>' % ret
             elif arg == "AddBuddy":
@@ -463,7 +469,7 @@ class SIPC():
                     else:
                         size = body_len + header_len - len(data)
                         self.__sock.settimeout(2)
-                        data = self.__sock.recv(size)
+                        data = self.__sock.recv(size,socket.MSG_WAITALL)
                         total_data.append(data)
                         break
                 else:
@@ -545,7 +551,7 @@ def d_print(vars=(),namespace=[],msg=""):
 
 def main(argv=None):
     try:
-        phone = PyFetion("1388888888","123456","TCP")
+        phone = PyFetion("138888888","123456","TCP")
     except PyFetionInfoError,e:
         print "corrent your mobile NO. and password"
         return -1
@@ -555,7 +561,7 @@ def main(argv=None):
     #phone.get_info()
     #phone.get_personal_info()
     #phone.get_contact_list()
-    phone.send_sms("Hello cocobear.info ","567455054")
+    phone.send_sms("Hello cocobear.info ","13888888888")
     #phone.send_msg("cocobear.info","567455054")
     #phone.send_schedule_sms("请注意，这个是定时短信",time)
     #time_format = "%Y-%m-%d %H:%M:%S"
