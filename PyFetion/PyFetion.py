@@ -26,6 +26,15 @@ FetionConfigXML = """<config><user mobile-no="%s" /><client type="PC" version="3
 
 FetionLoginXML = """<args><device type="PC" version="0" client-version="3.2.0540" /><caps value="simple-im;im-session;temp-group;personal-group" /><events value="contact;permission;system-message;personal-group" /><user-info attributes="all" /><presence><basic value="%s" desc="" /></presence></args>"""
 
+proxy_info = False
+#uncomment below line if you need proxy
+"""
+proxy_info = {'user' : '',
+              'pass' : '',
+              'host' : '218.249.83.87',
+              'port' : 8080 
+              }
+"""
 debug = True
 
 class PyFetionException(Exception):
@@ -154,7 +163,7 @@ class PyFetion():
                     return uri
         return None
 
-    def send_msg(self,msg,to,flag="SENDMSG"):
+    def send_msg(self,msg,to=None,flag="SENDMSG"):
         """see send_sms.
            if someone's fetion is offline, msg will send to phone,
            the same as send_sms.
@@ -308,7 +317,8 @@ class SIPC():
             else:
                 t = 's'
             url = self.__http_tunnel+"?t=%s&i=%s" % (t,self.__seq)
-            response = http_send(url,content,self.__exheaders).read()
+            ret = http_send(url,content,self.__exheaders)
+            response = ret.read()
             self.__seq+=1
             response = self.__sendSIPP()
             #This line will enhance the probablity of success.
@@ -516,22 +526,36 @@ class SIPC():
         return "777A6D03"+sha1(src).hexdigest().upper()
 
 def http_send(url,body="",exheaders="",login=False):
+    global proxy_info
     headers = {
                'User-Agent':'IIC2.0/PC 3.2.0540',
               }
     headers.update(exheaders)
+
+    if proxy_info:
+        proxy_support = urllib2.ProxyHandler(\
+            {"http":"http://%(user)s:%(pass)s@%(host)s:%(port)d" % proxy_info})
+        opener = urllib2.build_opener(proxy_support)
+    else:
+        opener = urllib2.build_opener()
+
+    urllib2.install_opener(opener)
     request = urllib2.Request(url,headers=headers,data=body)
     try:
         conn = urllib2.urlopen(request)
     except urllib2.URLError, e:
-        code = e.code
-        msg = e.read()
-        if code == 401 or code == 404:
-            if login:
-                d_print(('code','text'),locals())
-                raise PyFetionAuthError(code,msg)
-        return -1
+        code = e.errno
+        msg = e.reason
+        d_print(('code','msg'),locals())
+        if hasattr(e,'code'):
+            code = e.code
+            msg = e.read()
+            if code == 401 or code == 404:
+                if login:
+                    raise PyFetionAuthError(code,msg)
+        raise PyFetionSocketError(msg)
 
+    
     return conn
 
 
@@ -551,7 +575,7 @@ def d_print(vars=(),namespace=[],msg=""):
 
 def main(argv=None):
     try:
-        phone = PyFetion("138888888","123456","TCP")
+        phone = PyFetion("13888888888","123456","TCP")
     except PyFetionInfoError,e:
         print "corrent your mobile NO. and password"
         return -1
@@ -561,7 +585,7 @@ def main(argv=None):
     #phone.get_info()
     #phone.get_personal_info()
     #phone.get_contact_list()
-    phone.send_sms("Hello cocobear.info ","13888888888")
+    phone.send_sms("Hello cocobear.info ","13838381438")
     #phone.send_msg("cocobear.info","567455054")
     #phone.send_schedule_sms("请注意，这个是定时短信",time)
     #time_format = "%Y-%m-%d %H:%M:%S"
