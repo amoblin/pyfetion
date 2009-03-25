@@ -544,15 +544,16 @@ def http_send(url,body="",exheaders="",login=False):
     try:
         conn = urllib2.urlopen(request)
     except urllib2.URLError, e:
-        code = e.errno
-        msg = e.reason
-        d_print(('code','msg'),locals())
         if hasattr(e,'code'):
             code = e.code
             msg = e.read()
-            if code == 401 or code == 404:
-                if login:
-                    raise PyFetionAuthError(code,msg)
+        else:
+            code = e.errno
+            msg = e.reason
+        d_print(('code','msg'),locals())
+        if code == 401 or code == 404:
+            if login:
+                raise PyFetionAuthError(code,msg)
         raise PyFetionSocketError(msg)
 
     
