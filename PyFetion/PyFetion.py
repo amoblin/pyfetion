@@ -541,21 +541,28 @@ def http_send(url,body="",exheaders="",login=False):
 
     urllib2.install_opener(opener)
     request = urllib2.Request(url,headers=headers,data=body)
-    try:
-        conn = urllib2.urlopen(request)
-    except urllib2.URLError, e:
-        if hasattr(e,'code'):
-            code = e.code
-            msg = e.read()
-        else:
-            code = e.errno
-            msg = e.reason
-        d_print(('code','msg'),locals())
-        if code == 401 or code == 404:
-            if login:
-                raise PyFetionAuthError(code,msg)
-        raise PyFetionSocketError(msg)
-
+    #add retry for GAE. 
+    #PyFetion will get 405 code sometimes, we should re-send the request.
+    retry = 5
+    while retry:
+        try:
+            conn = urllib2.urlopen(request)
+        except urllib2.URLError, e:
+            if hasattr(e,'code'):
+                code = e.code
+                msg = e.read()
+            else:
+                code = e.errno
+                msg = e.reason
+            d_print(('code','msg'),locals())
+            if code == 401 or code == 404:
+                if login:
+                    raise PyFetionAuthError(code,msg)
+            if code == 405:
+                retry = retry - 1
+                continue
+            raise PyFetionSocketError(msg)
+        break
     
     return conn
 
