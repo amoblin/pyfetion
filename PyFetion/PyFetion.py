@@ -81,11 +81,9 @@ class PyFetion():
     mobile_no = ""
     passwd = ""
     login_type = ""
+    login_ok = False
 
-    def __init__(self,mobile_no,passwd,login_type="HTTP"):
-        if not passwd or len(mobile_no) != 11:
-            raise PyFetionInfoError(mobile_no,passwd)
-
+    def __init__(self,mobile_no,passwd,login_type="TCP"):
         self.mobile_no = mobile_no
         self.passwd = passwd
         self.login_type = login_type
@@ -99,9 +97,9 @@ class PyFetion():
         try:
             self.__register(self.__ssic,self.__domain)
         except PyFetionRegisterError,e:
-            print "Register Failed!"
-            #这里使用一个status变量作为类的成员，每一种失败后都改变一下这个
-            pass
+            d_print("Register Failed!")
+            return
+        self.login_ok = True
     def get_offline_msg(self):
         self.__SIPC.get("")
 
@@ -143,10 +141,6 @@ class PyFetion():
 
         if who.startswith("sip"):
             return who
-        #Fetion now can send use mobile number(09.02.23)
-        #like tel: 13888888888
-        if len(who) == 11:
-            return "tel:"+who
 
         l = self.get_contact_list()
         all = re.findall('uri="(.+?)" ',l)
@@ -173,6 +167,12 @@ class PyFetion():
            """
         if not to:
             to = self.__uri
+        #Fetion now can send use mobile number(09.02.23)
+        #like tel: 13888888888
+        #but not in sending to PC
+        elif flag != "SENDMSG" and len(who) == 11 and who.isdigit():
+            to = "tel:"+to
+
         else:
             to = self.get_uri(to)
             if not to:
@@ -191,13 +191,15 @@ class PyFetion():
            to can be mobile number or fetion number
            """
         if long:
-            self.send_msg(msg,to,"SENDCatSMS")
+            return self.send_msg(msg,to,"SENDCatSMS")
         else:
-            self.send_msg(msg,to,"SENDSMS")
+            return self.send_msg(msg,to,"SENDSMS")
 
     def send_schedule_sms(self,msg,time,to=None):
         if not to:
             to = self.__uri
+        elif len(who) == 11 and who.isdigit():
+            to = "tel:"+to
         else:
             to = self.get_uri(to)
             if not to:
@@ -482,7 +484,7 @@ class SIPC():
                     else:
                         size = body_len + header_len - len(data)
                         self.__sock.settimeout(2)
-                        data = self.__sock.recv(size,socket.MSG_WAITALL)
+                        data = self.__sock.recv(size)
                         total_data.append(data)
                         break
                 else:
@@ -587,7 +589,7 @@ def d_print(vars=(),namespace=[],msg=""):
 
 
 def main(argv=None):
-    phone = PyFetion("13838381438","12346","TCP")
+    phone = PyFetion("13638381438","123456","HTTP")
     try:
         phone.login()
     except PyFetionSupportError,e:
@@ -597,12 +599,14 @@ def main(argv=None):
         print "手机号密码错误"
         return 2
 
+    if phone.login_ok:
+        print "登录成功"
     #phone.get_offline_msg()
     #phone.add("138888888")
     #phone.get_info()
     #phone.get_personal_info()
     #phone.get_contact_list()
-    phone.send_sms("Hello cocobear.info ","13838381438")
+    ret = phone.send_msg("Hello cocobear.info ","13838381438")
     #phone.send_msg("cocobear.info","567455054")
     #phone.send_schedule_sms("请注意，这个是定时短信",time)
     #time_format = "%Y-%m-%d %H:%M:%S"
