@@ -40,9 +40,6 @@ debug = True
 class PyFetionException(Exception):
     """Base class for all exceptions raised by this module."""
 
-class PyFetionInfoError(PyFetionException):
-    """Phone number or password incomplete"""
-
 class PyFetionSocketError(PyFetionException):
     """any socket error"""
     def __init__(self, msg):
@@ -59,8 +56,14 @@ class PyFetionResponseException(PyFetionException):
 
 class PyFetionAuthError(PyFetionResponseException):
     """Authentication error.
-    Your password error, or your mobile NO. don't support fetion
+    Your password error.
     """
+
+class PyFetionSupportError(PyFetionResponseException):
+    """Support error.
+    Your phone number don't support fetion.
+    """
+
 class PyFetionRegisterError(PyFetionResponseException):
     """RegisterError.
     """
@@ -555,9 +558,11 @@ def http_send(url,body="",exheaders="",login=False):
                 code = e.errno
                 msg = e.reason
             d_print(('code','msg'),locals())
-            if code == 401 or code == 404:
+            if code == 401:
                 if login:
                     raise PyFetionAuthError(code,msg)
+            if code == 404:
+                raise PyFetionSupportError(code,msg)
             if code == 405:
                 retry = retry - 1
                 continue
@@ -582,12 +587,16 @@ def d_print(vars=(),namespace=[],msg=""):
 
 
 def main(argv=None):
+    phone = PyFetion("13838381438","12346","TCP")
     try:
-        phone = PyFetion("13888888888","123456","TCP")
-    except PyFetionInfoError,e:
-        print "corrent your mobile NO. and password"
-        return -1
-    phone.login()
+        phone.login()
+    except PyFetionSupportError,e:
+        print "手机号未开通飞信"
+        return 1
+    except PyFetionAuthError,e:
+        print "手机号密码错误"
+        return 2
+
     #phone.get_offline_msg()
     #phone.add("138888888")
     #phone.get_info()
