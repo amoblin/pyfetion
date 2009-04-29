@@ -170,7 +170,7 @@ class PyFetion():
         #Fetion now can send use mobile number(09.02.23)
         #like tel: 13888888888
         #but not in sending to PC
-        elif flag != "SENDMSG" and len(who) == 11 and who.isdigit():
+        elif flag != "SENDMSG" and len(to) == 11 and to.isdigit():
             to = "tel:"+to
 
         else:
@@ -198,7 +198,7 @@ class PyFetion():
     def send_schedule_sms(self,msg,time,to=None):
         if not to:
             to = self.__uri
-        elif len(who) == 11 and who.isdigit():
+        elif len(to) == 11 and to.isdigit():
             to = "tel:"+to
         else:
             to = self.get_uri(to)
