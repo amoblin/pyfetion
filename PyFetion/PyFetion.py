@@ -10,6 +10,7 @@ import sys,re
 import binascii
 import hashlib
 import socket
+import os
 
 from hashlib import md5
 from hashlib import sha1
@@ -36,6 +37,15 @@ proxy_info = {'user' : '',
               }
 """
 debug = True
+
+if os.name == 'posix' and debug != "file":
+    COL_NONE = "\033[0m"
+    COL_RED  = "\033[0;31;48m" 
+    sys_encoding = 'utf-8'
+else:
+    COL_NONE = ""
+    COL_RED  = ""
+    sys_encoding = 'cp936'
 
 class PyFetionException(Exception):
     """Base class for all exceptions raised by this module."""
@@ -573,40 +583,48 @@ def http_send(url,body="",exheaders="",login=False):
     
     return conn
 
-
 def d_print(vars=(),namespace=[],msg=""):
     """if only sigle variable use like this ('var',)"""
     global debug
+    if not debug:
+        return
+    if debug == "file":
+        log_file = file("pyfetion.log","a")
+        stdout_old = sys.stdout
+        sys.stdout = log_file
     if vars and not namespace and not msg:
         msg = vars
-    if debug and vars and namespace:
+    if vars and namespace:
         for var in vars:
             if var in namespace:
-                print "[PyFetion]:\033[0;31;48m%s\033[0m" % var,
-                print namespace[var]
-    if debug and msg:
-        print "[PyFetion]:\033[0;31;48m%s\033[0m" % msg
+                print "[PyFetion]:%s%s%s[" % (COL_RED,var,COL_NONE),
+                print str(namespace[var]).decode('utf-8').encode(sys_encoding)+"]"
+    if msg:
+        print "[PyFetion]:%s %s %s" % (COL_RED,msg,COL_NONE)
+    if log_file:
+        log_file.close()
+        sys.stdout = stdout_old
 
 
 def main(argv=None):
-    phone = PyFetion("13638381438","123456","HTTP")
+    phone = PyFetion("13819861986","123456","TCP")
     try:
         phone.login()
     except PyFetionSupportError,e:
-        print "手机号未开通飞信"
+        print u"手机号未开通飞信".encode(sys_encoding)
         return 1
     except PyFetionAuthError,e:
-        print "手机号密码错误"
+        print u"手机号密码错误".encode(sys_encoding)
         return 2
 
     if phone.login_ok:
-        print "登录成功"
+        print u"登录成功".encode(sys_encoding)
     #phone.get_offline_msg()
     #phone.add("138888888")
     #phone.get_info()
     #phone.get_personal_info()
-    #phone.get_contact_list()
-    ret = phone.send_msg("Hello cocobear.info ","13838381438")
+    phone.get_contact_list()
+    ret = phone.send_sms("Hello cocobear.info ","13838383438")
     #phone.send_msg("cocobear.info","567455054")
     #phone.send_schedule_sms("请注意，这个是定时短信",time)
     #time_format = "%Y-%m-%d %H:%M:%S"
