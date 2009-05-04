@@ -27,7 +27,7 @@ def url2read(s):
 
 def read2url(s):
     head = ''
-    g = re.search('^(http|ftp://)(.*)',s)
+    g = re.search('^(http:|ftp://)(.*)',s)
     if g:
         head = g.group(1)
         s = g.group(2)
