@@ -601,7 +601,7 @@ def d_print(vars=(),namespace=[],msg=""):
                 print str(namespace[var]).decode('utf-8').encode(sys_encoding)+"]"
     if msg:
         print "[PyFetion]:%s %s %s" % (COL_RED,msg,COL_NONE)
-    if log_file:
+    if debug == "file" and log_file:
         log_file.close()
         sys.stdout = stdout_old
 
