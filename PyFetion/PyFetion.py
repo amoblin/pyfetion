@@ -36,16 +36,17 @@ proxy_info = {'user' : '',
               'port' : 8080 
               }
 """
-debug = True
-
-if os.name == 'posix' and debug != "file":
-    COL_NONE = "\033[0m"
-    COL_RED  = "\033[0;31;48m" 
+debug = "file"
+COL_NONE = ""
+COL_RED  = ""
+ 
+if os.name == 'posix':
     sys_encoding = 'utf-8'
+    if debug != "file":
+        COL_NONE = "\033[0m"
+        COL_RED  = "\033[0;31;48m" 
 else:
-    COL_NONE = ""
-    COL_RED  = ""
-    sys_encoding = 'cp936'
+   sys_encoding = 'cp936'
 
 class PyFetionException(Exception):
     """Base class for all exceptions raised by this module."""
