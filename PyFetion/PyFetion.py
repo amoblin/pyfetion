@@ -36,7 +36,7 @@ proxy_info = {'user' : '',
               'port' : 8080 
               }
 """
-debug = "file"
+debug = True
 COL_NONE = ""
 COL_RED  = ""
  
@@ -474,33 +474,39 @@ class SIPC():
             raise PyFetionSocketError(e.read())
 
     def __tcp_recv(self):
-        """read 1024 bytes first, if there's still more data, read left data.
+        """read buf_size bytes first,if there's still more data, read left data.
            get length from header :
            L: 1022 
         """
         total_data = []
-        size = 1024
+        buf_size = 1024
         try:
-            while True:
-                data = self.__sock.recv(size)
-                total_data.append(data)
-                if "\r\n\r\n" == data[-4:]:
-                    break
-                elif re.search("L: (\d+)",data):
-                    match = re.search("L: (\d+)",data)
-                    body_len = int(match.group(1))
-                    header_len =  match.end() + 4
-                    if len(data) == body_len + header_len:
-                        break
-                    else:
-                        size = body_len + header_len - len(data)
-                        self.__sock.settimeout(2)
-                        data = self.__sock.recv(size)
+            data = self.__sock.recv(buf_size)
+            total_data.append(data)
+            if "\r\n\r\n" == data[-4:]:
+                pass
+            elif re.search("L: (\d+)",data):
+                match = re.search("L: (\d+)",data)
+                body_len = int(match.group(1))
+                header_len =  match.end() + 4
+                if len(data) != body_len + header_len:
+                    print body_len,len(data)
+                    left = body_len + header_len - len(data)
+                    self.__sock.settimeout(2)
+                    data = ""
+                    while True:
+                        recv_size = max(buf_size,left)
+                        data = self.__sock.recv(recv_size)
+                        if not data:
+                            break
                         total_data.append(data)
-                        break
-                else:
-                    raise PyFetionSocketError("SHOULD NOT happened.")
-                    
+                        n = len(data)
+                        if n >= left:
+                            break
+                        left = left - n
+                    total_data.append(data)
+            else:
+                raise PyFetionSocketError("SHOULD NOT happened.")
         except socket.error,e:
             self.__sock.close()
             raise PyFetionSocketError(e.read())
@@ -625,7 +631,7 @@ def main(argv=None):
     #phone.get_info()
     #phone.get_personal_info()
     phone.get_contact_list()
-    ret = phone.send_sms("Hello cocobear.info ","13838383438")
+    #ret = phone.send_sms("Hello<cocobear.info ")
     #phone.send_msg("cocobear.info","567455054")
     #phone.send_schedule_sms("请注意，这个是定时短信",time)
     #time_format = "%Y-%m-%d %H:%M:%S"
