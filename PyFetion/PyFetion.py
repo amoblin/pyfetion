@@ -504,7 +504,6 @@ class SIPC():
                         if n >= left:
                             break
                         left = left - n
-                    total_data.append(data)
             else:
                 raise PyFetionSocketError("SHOULD NOT happened.")
         except socket.error,e:
