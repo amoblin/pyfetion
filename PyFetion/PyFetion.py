@@ -115,7 +115,9 @@ class PyFetion():
         self.__SIPC.get("")
 
     def add(self,who):
-        self.__SIPC.get("INFO","AddBuddy",who)
+	my_info = self.get_info()
+	nick_name = re.findall('nickname="(.+?)" ',my_info)[0]
+        self.__SIPC.get("INFO","AddBuddy",who,nick_name)
         response = self.__SIPC.send()
         code = self.__SIPC.get_code(response)
         if code == 521:
@@ -425,7 +427,7 @@ class SIPC():
             elif arg == "GetContactsInfo":
                 body = '<args><contacts attributes="all"><contact uri="%s" /></contacts></args>' % ret
             elif arg == "AddBuddy":
-                body = '<args><contacts><buddies><buddy uri="tel:%s" buddy-lists="1" desc="This message is send by PyFetion" expose-mobile-no="1" expose-name="1" /></buddies></contacts></args>' % ret
+                body = '<args><contacts><buddies><buddy uri="tel:%s" buddy-lists="" desc="%s" expose-mobile-no="1" expose-name="1" /></buddies></contacts></args>' % (ret,extra)
             elif arg == "AddMobileBuddy":
                 body = '<args><contacts><mobile-buddies><mobile-buddy uri="tel:%s" buddy-lists="1" desc="THis message is send by PyFetion" invite="0" /></mobile-buddies></contacts></args>' % ret
 
@@ -626,10 +628,10 @@ def main(argv=None):
     if phone.login_ok:
         print u"登录成功".encode(sys_encoding)
     #phone.get_offline_msg()
-    #phone.add("138888888")
     #phone.get_info()
+    #phone.add("13888888888")
     #phone.get_personal_info()
-    phone.get_contact_list()
+    #phone.get_contact_list()
     #ret = phone.send_sms("Hello<cocobear.info ")
     #phone.send_msg("cocobear.info","567455054")
     #phone.send_schedule_sms("请注意，这个是定时短信",time)
