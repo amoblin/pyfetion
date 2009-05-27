@@ -94,7 +94,9 @@ class PyFetion():
     login_type = ""
     login_ok = False
 
-    def __init__(self,mobile_no,passwd,login_type="TCP"):
+    def __init__(self,mobile_no,passwd,login_type="TCP",debug_type=True):
+	global debug
+	debug = debug_type
         self.mobile_no = mobile_no
         self.passwd = passwd
         self.login_type = login_type
@@ -112,11 +114,15 @@ class PyFetion():
             return
         self.login_ok = True
     def get_offline_msg(self):
-        self.__SIPC.get("")
+        self.__SIPC.get("GetOfflineMessages","")
+	response = self.__SIPC.send()
 
     def add(self,who):
 	my_info = self.get_info()
-	nick_name = re.findall('nickname="(.+?)" ',my_info)[0]
+	try:
+	    nick_name = re.findall('nickname="(.+?)" ',my_info)[0]
+	except IndexError:
+	    nick_name = " "
         self.__SIPC.get("INFO","AddBuddy",who,nick_name)
         response = self.__SIPC.send()
         code = self.__SIPC.get_code(response)
@@ -126,6 +132,7 @@ class PyFetion():
             d_print("Mobile NO. Don't Have Fetion")
             self.__SIPC.get("INFO","AddMobileBuddy",who)
             response = self.__SIPC.send()
+	return code
 
 
     def get_personal_info(self):
@@ -156,7 +163,10 @@ class PyFetion():
             return who
 
         l = self.get_contact_list()
-        all = re.findall('uri="(.+?)" ',l)
+	try:
+            all = re.findall('uri="(.+?)" ',l)
+	except:
+            return None
         #Get uri from contact list, compare one by one
         #I can't get other more effect way.
         for uri in all:
@@ -164,7 +174,10 @@ class PyFetion():
             if who in uri:
                 return uri
             ret = self.get_info(uri)
-            no = re.findall('mobile-no="(.+?)" ',ret)
+	    try:
+                no = re.findall('mobile-no="(.+?)" ',ret)
+	    except:
+		continue
             #if people show you his mobile number.
             if no:
                 #who is the mobile number.
@@ -195,8 +208,14 @@ class PyFetion():
         code = self.__SIPC.get_code(response)
         if code == 280:
             d_print("Send sms/msg OK!")
+        elif self.__uri == to and code == 200:
+            d_print("Send sms/msg OK!")
+        elif flag == "SENDMSG" and code == 200:
+	    d_print("Send sms/msg OK!")
         else:
             d_print(('code',),locals())
+	    return False
+        return True
 
     def send_sms(self,msg,to=None,long=False):
         """send sms to someone, if to is None, send self.
@@ -365,7 +384,9 @@ class SIPC():
             d_print(('self.code','self.msg',),locals())
             return self.code
         except AttributeError,e:
-            return None
+	    self.cmd = re.search("(.+?) %s" % self.ver,response).group(1)
+	    d_print(('self.cmd',),locals())
+            return self.cmd
  
     def get(self,cmd,arg,ret="",extra=""):
         body = ret
@@ -417,6 +438,10 @@ class SIPC():
             self.init('S')
             self.header.insert(3,('N',cmd))
             body = '<args><schedule-sms send-time="%s"><message>%s</message><receivers><receiver uri="%s" /></receivers></schedule-sms></args>' % (ret,arg,extra)
+	if cmd == "GetOfflineMessages":
+            self.init('S')
+	    self.header.insert(3,('N',cmd))
+	    
         if cmd == "INFO":
             self.init('S')
             self.header.insert(3,('N',arg))
@@ -510,7 +535,7 @@ class SIPC():
                 raise PyFetionSocketError("SHOULD NOT happened.")
         except socket.error,e:
             self.__sock.close()
-            raise PyFetionSocketError(e.read())
+            raise PyFetionSocketError(e)
         return "".join(total_data)
 
 
@@ -615,7 +640,7 @@ def d_print(vars=(),namespace=[],msg=""):
 
 
 def main(argv=None):
-    phone = PyFetion("13819861986","123456","TCP")
+    phone = PyFetion("13619861986","123456","TCP")
     try:
         phone.login()
     except PyFetionSupportError,e:
@@ -627,13 +652,13 @@ def main(argv=None):
 
     if phone.login_ok:
         print u"登录成功".encode(sys_encoding)
-    #phone.get_offline_msg()
+    phone.get_offline_msg()
     #phone.get_info()
-    #phone.add("13888888888")
+    phone.add("13619861986")
     #phone.get_personal_info()
     #phone.get_contact_list()
     #ret = phone.send_sms("Hello<cocobear.info ")
-    #phone.send_msg("cocobear.info","567455054")
+    phone.send_msg("cocobear.info","782079728")
     #phone.send_schedule_sms("请注意，这个是定时短信",time)
     #time_format = "%Y-%m-%d %H:%M:%S"
     #time.strftime(time_format,time.gmtime())
