@@ -95,8 +95,8 @@ class PyFetion():
     login_ok = False
 
     def __init__(self,mobile_no,passwd,login_type="TCP",debug_type=True):
-	global debug
-	debug = debug_type
+    global debug
+    debug = debug_type
         self.mobile_no = mobile_no
         self.passwd = passwd
         self.login_type = login_type
@@ -115,14 +115,14 @@ class PyFetion():
         self.login_ok = True
     def get_offline_msg(self):
         self.__SIPC.get("GetOfflineMessages","")
-	response = self.__SIPC.send()
+    response = self.__SIPC.send()
 
     def add(self,who):
-	my_info = self.get_info()
-	try:
-	    nick_name = re.findall('nickname="(.+?)" ',my_info)[0]
-	except IndexError:
-	    nick_name = " "
+    my_info = self.get_info()
+    try:
+        nick_name = re.findall('nickname="(.+?)" ',my_info)[0]
+    except IndexError:
+        nick_name = " "
         self.__SIPC.get("INFO","AddBuddy",who,nick_name)
         response = self.__SIPC.send()
         code = self.__SIPC.get_code(response)
@@ -132,7 +132,7 @@ class PyFetion():
             d_print("Mobile NO. Don't Have Fetion")
             self.__SIPC.get("INFO","AddMobileBuddy",who)
             response = self.__SIPC.send()
-	return code
+    return code
 
 
     def get_personal_info(self):
@@ -163,9 +163,9 @@ class PyFetion():
             return who
 
         l = self.get_contact_list()
-	try:
+    try:
             all = re.findall('uri="(.+?)" ',l)
-	except:
+    except:
             return None
         #Get uri from contact list, compare one by one
         #I can't get other more effect way.
@@ -174,10 +174,10 @@ class PyFetion():
             if who in uri:
                 return uri
             ret = self.get_info(uri)
-	    try:
+        try:
                 no = re.findall('mobile-no="(.+?)" ',ret)
-	    except:
-		continue
+        except:
+        continue
             #if people show you his mobile number.
             if no:
                 #who is the mobile number.
@@ -211,10 +211,10 @@ class PyFetion():
         elif self.__uri == to and code == 200:
             d_print("Send sms/msg OK!")
         elif flag == "SENDMSG" and code == 200:
-	    d_print("Send sms/msg OK!")
+        d_print("Send sms/msg OK!")
         else:
             d_print(('code',),locals())
-	    return False
+        return False
         return True
 
     def send_sms(self,msg,to=None,long=False):
@@ -384,8 +384,8 @@ class SIPC():
             d_print(('self.code','self.msg',),locals())
             return self.code
         except AttributeError,e:
-	    self.cmd = re.search("(.+?) %s" % self.ver,response).group(1)
-	    d_print(('self.cmd',),locals())
+        self.cmd = re.search("(.+?) %s" % self.ver,response).group(1)
+        d_print(('self.cmd',),locals())
             return self.cmd
  
     def get(self,cmd,arg,ret="",extra=""):
@@ -438,10 +438,10 @@ class SIPC():
             self.init('S')
             self.header.insert(3,('N',cmd))
             body = '<args><schedule-sms send-time="%s"><message>%s</message><receivers><receiver uri="%s" /></receivers></schedule-sms></args>' % (ret,arg,extra)
-	if cmd == "GetOfflineMessages":
+    if cmd == "GetOfflineMessages":
             self.init('S')
-	    self.header.insert(3,('N',cmd))
-	    
+        self.header.insert(3,('N',cmd))
+        
         if cmd == "INFO":
             self.init('S')
             self.header.insert(3,('N',arg))
