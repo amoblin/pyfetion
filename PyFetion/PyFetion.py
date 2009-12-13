@@ -751,6 +751,7 @@ class on_cmd_I(Thread,SIPC):
         self.deal_msg(self.response)
 
     def _send_msg(self,msg):
+        msg = msg.replace('<','&lt;')
         self.get("SendMsg",'',msg)
         self.send()
         
@@ -1125,6 +1126,7 @@ class PyFetion(SIPC):
             to = self.get_uri(to)
             if not to:
                 return False
+        msg = msg.replace('<','&lt;')
         self.get(flag,to,msg)
         try:
             response = self.send()
@@ -1162,6 +1164,7 @@ class PyFetion(SIPC):
             if not to:
                 return False
 
+        msg = msg.replace('<','&lt;')
         self.get("SSSetScheduleSms",msg,time,to)
         response = self.send()
         code = self.get_code(response)
