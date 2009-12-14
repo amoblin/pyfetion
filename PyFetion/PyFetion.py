@@ -998,9 +998,10 @@ class PyFetion(SIPC):
                 continue
             if self.contactlist[uri][0] == '':
                 self.contactlist[uri][0] = nickname
-            self.contactlist[uri][1] = mobile_no
 
-        #d_print(('self.contactlist',),locals())
+            if self.contactlist[uri][1] == '':
+                self.contactlist[uri][1] = mobile_no
+
 
     
     def get_contactlist(self):
