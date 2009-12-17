@@ -181,6 +181,7 @@ class fetion_input(Thread):
                     self.hint = "给%s发%s:" % (c[self.to][0],s[self.type])
                 else:
                     printl("编号超出好友范围")
+                    return
 
             #使用手机号作为参数
             elif len(cmd[1]) == 11:
