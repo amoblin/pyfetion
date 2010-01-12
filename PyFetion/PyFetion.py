@@ -74,11 +74,11 @@ class PyFetionSocketError(PyFetionException):
             args = e.args
             d_print(('args',),locals())
             try:
+                self.args = (e.errno,msg)
                 msg = socket.errorTab[e.errno]
+                self.code = e.errno
             except:
-                msg = ''
-            self.args = (e.errno,msg)
-            self.code = e.errno
+                msg = e
             self.msg  = msg
 
 class PyFetionAuthError(PyFetionException):
@@ -1020,7 +1020,11 @@ class PyFetion(SIPC):
         if code != 200:
             return False
 
-        d = re.findall('<buddy-lists>(.*?)<allow-list>',response)[0]
+        try:
+            d = re.findall('<buddy-lists>(.*?)<allow-list>',response)[0]
+        #No buddy here
+        except:
+            return True
         try:
             buddy_list = re.findall('uri="(.+?)" user-id="\d+" local-name="(.*?)"',d)
         except:
