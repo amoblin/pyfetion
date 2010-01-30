@@ -100,7 +100,7 @@ class CLI(cmd.Cmd):
         self.prompt=self.sta + ">"
 
     def default(self, line):
-        '''快速发送消息'''
+        '''会话中：快速发送消息'''
         if self.to:
             if self.phone.send_msg(toUTF8(line),self.to):
                 print u'send to ',self.to
@@ -215,13 +215,10 @@ class CLI(cmd.Cmd):
             print u'用法：msg [num] [text]'
             return
         cmd = line.split()
-        if len(cmd)==1:
-            return
         num = cmd[0]
-        text = cmd[1]
-        self.to=num
 
         c = copy(self.phone.contactlist)
+
 
         if len(num)==11:
             if self.to in self.phone.session:
@@ -231,12 +228,12 @@ class CLI(cmd.Cmd):
             n = int(num)
             if n >= 0 and n < len(self.phone.contactlist):
                 self.to = c.keys()[n]
-
-        if self.phone.send_msg(toUTF8(text),self.to):
-            #print u'send message to ', self.to
             self.prompt = self.sta +"@"+c[self.to][0]+">"
-        else:
-            printl("发送消息失败")
+            if len(cmd)>1:
+                if self.phone.send_msg(toUTF8(cmd[1]),self.to):
+                    print u'send message to ', self.to
+                else:
+                    printl("发送消息失败")
 
     def do_sms(self,line):
         '''sms [num] [text]
@@ -284,6 +281,8 @@ class CLI(cmd.Cmd):
 
     def do_quit(self,line):
         '''quit\nquit the current session'''
+        self.to=""
+        self.prompt=self.sta+">"
         pass
 
     def do_exit(self,line):
