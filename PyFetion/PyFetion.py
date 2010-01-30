@@ -1108,6 +1108,17 @@ class PyFetion(SIPC):
                 return uri
         return None
 
+    def get_order(self,who):
+        '''get order number from sip'''
+        i=0
+        for uri in self.contactlist:
+            if who == uri:
+                return i
+            else:
+                i = i+1
+        return None
+
+
     def send_msg(self,msg,to=None,flag="CatMsg"):
         """more info at send_sms function.
            if someone's fetion is offline, msg will send to phone,
