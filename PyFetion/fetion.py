@@ -11,7 +11,8 @@ from copy import copy
 import time
 import sys
 import exceptions
-import cmd,pynotify,termcolor
+import cmd
+#import pynotify,termcolor
 
 
 status = {FetionHidden:"短信在线",FetionOnline:"在线",FetionBusy:"忙碌",FetionAway:"离开",FetionOffline:"离线"}
@@ -35,13 +36,14 @@ class fetion_recv(Thread):
                 #在登录时BN消息(e)有可能含有多个uri 
                 for i in e[1]:
                     if time.time() - start_time > 5:
-                        #printl('')
-                        #printl("%s [%s]" % (self.phone.contactlist[i[0]][0],status[i[1]]))
-                        pynotify.init("Some Application or Title")
-                        self.notification = pynotify.Notification(self.phone.contactlist[i[0]][0], status[i[1]], "dialog-warning")
-                        self.notification.set_urgency(pynotify.URGENCY_NORMAL)
-                        self.notification.set_timeout(1)
-                        self.notification.show()
+                        printl('')
+                        printl("%s [%s]" % (self.phone.contactlist[i[0]][0],status[i[1]]))
+
+                        #pynotify.init("Some Application or Title")
+                        #self.notification = pynotify.Notification(self.phone.contactlist[i[0]][0], status[i[1]], "dialog-warning")
+                        #self.notification.set_urgency(pynotify.URGENCY_NORMAL)
+                        #self.notification.set_timeout(1)
+                        #self.notification.show()
 
                         
             elif e[0] == "Message":
@@ -49,14 +51,16 @@ class fetion_recv(Thread):
                 #系统广告 忽略之
                 if e[1] not in self.phone.contactlist:
                     continue
-                #printl('')
-                #printl("%s从%s发来:%s" % (self.phone.contactlist[e[1]][0],s[e[3]],e[2]))
-                #printl('')
-                pynotify.init("Some Application or Title")
-                self.notification = pynotify.Notification(self.phone.contactlist[e[1]][0], e[2], "dialog-warning")
-                self.notification.set_urgency(pynotify.URGENCY_NORMAL)
-                self.notification.set_timeout(1)
-                self.notification.show()
+                printl('')
+                printl("%s从%s发来:%s" % (self.phone.contactlist[e[1]][0],s[e[3]],e[2]))
+                printl('')
+
+                #pynotify.init("Some Application or Title")
+                #self.notification = pynotify.Notification(self.phone.contactlist[e[1]][0], e[2], "dialog-warning")
+                #self.notification.set_urgency(pynotify.URGENCY_NORMAL)
+                #self.notification.set_timeout(1)
+                #self.notification.show()
+
             elif e[0] == "deregistered":
                 self.phone.receving = False
                 printl('')
@@ -90,7 +94,8 @@ class CLI(cmd.Cmd):
         global status
         cmd.Cmd.__init__(self)
         self.phone=phone
-        self.prompt = termcolor.colored(status[self.phone.presence],"green") + ">"
+        #self.prompt = termcolor.colored(status[self.phone.presence],"green") + ">"
+        self.prompt = status[self.phone.presence] + ">"
         self.to=""
         self.type="msg"
 
@@ -198,7 +203,8 @@ class CLI(cmd.Cmd):
             color = "red"
         elif i == 4:
             color = "green"
-        self.prompt = termcolor.colored(status[self.phone.presence],color) + ">"
+        #self.prompt = termcolor.colored(status[self.phone.presence],color) + ">"
+        self.prompt = status[self.phone.presence] + ">"
 
     def do_msg(self,line):
         """msg [num] [text]
@@ -235,7 +241,8 @@ class CLI(cmd.Cmd):
 
         if self.phone.send_msg(toUTF8(text),self.to):
             print u'send message to ', self.to
-            self.prompt = termcolor.colored(status[self.phone.presence],color)+"@"+c[self.to][0]+">"
+            #self.prompt = termcolor.colored(status[self.phone.presence],color)+"@"+c[self.to][0]+">"
+            self.prompt = status[self.phone.presence],color+"@"+c[self.to][0]+">"
         else:
             printl("发送消息失败")
 
