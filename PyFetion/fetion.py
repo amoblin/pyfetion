@@ -95,7 +95,20 @@ class CLI(cmd.Cmd):
         self.type="msg"
 
     def default(self, line):
-        print line, u' 不支持的命令!'
+        '''快速发送消息'''
+        if self.to:
+            if self.phone.send_msg(toUTF8(line),self.to):
+                print u'send to ',self.to
+            else:
+                printl("发送消息失败")
+        else:
+            print line, u' 不支持的命令!'
+
+    def do_test(self,line):
+        c = copy(self.phone.contactlist)
+        n = int(line)
+        to = c.keys()[n]
+        print c[to][0]
 
     def do_la(self,line):
         '''用法:ls\n显示所有好友列表.'''
@@ -146,7 +159,6 @@ class CLI(cmd.Cmd):
         for i in c:
             if c[i][0] == '':
                 c[i][0] = i[4:4+9]
-        printl(status[FetionOnline])
         for i in range(num):
             if c[c.keys()[i]][2] != FetionHidden and c[c.keys()[i]][2] != FetionOffline:
                 printl("%-4d%-20s" % (i,c[c.keys()[i]][0]))
@@ -188,43 +200,68 @@ class CLI(cmd.Cmd):
             color = "green"
         self.prompt = termcolor.colored(status[self.phone.presence],color) + ">"
 
-    def do_msg(self,line,num="15901049672",text="hello"):
+    def do_msg(self,line):
         """msg [num] [text]
         send text to num"""
         self.type=line
+        num = line.split(" ")[0]
+        text = line.split(" ")[1]
         self.to=num
 
+        i = self.phone.presence
+        color="green"
+        if i==0:
+            color = "grey"
+        elif i == 1:
+            color = "blue"
+        elif i == 2:
+            color = "cyan"
+        elif i == 3:
+            color = "red"
+        elif i == 4:
+            color = "green"
 
-        if self.to in self.phone.session:
-            self.phone.session[self.to]._send_msg(toUTF8(text))
-            return
-        if not self.phone.send_msg(toUTF8(text),self.to):
+
+        c = copy(self.phone.contactlist)
+
+        if len(num)==11:
+            if self.to in self.phone.session:
+                self.phone.session[self.to]._send_msg(toUTF8(text))
+                return
+        elif len(num) < 4:
+            n = int(num)
+            if n >= 0 and n < len(self.phone.contactlist):
+                self.to = c.keys()[n]
+
+        if self.phone.send_msg(toUTF8(text),self.to):
+            print u'send message to ', self.to
+            self.prompt = termcolor.colored(status[self.phone.presence],color)+"@"+c[self.to][0]+">"
+        else:
             printl("发送消息失败")
 
-    def do_sms(self,line,num="15901049672",text="你好，我是阿默林"):
+    def do_sms(self,line):
         '''sms [num] text
         send sms to num'''
+        num = line.split(" ")[0]
         c = copy(self.phone.contactlist)
-        if lne(num)==11:
+        if len(num)==11:
+            '''cellphone number'''
             for c in c.items():
-                if c[1][1] == cmd[1]:
+                if c[1][1] == num:
                     self.to = c[0]
-                    self.hint = "给%s发%s:" % (c[1][0],s[self.type])
-
             if not self.to:
                 printl("手机号不是您的好友")
+        elif len(num) < 4:
+            n = int(num)
+            if n >= 0 and n < len(self.phone.contactlist):
+                self.to = c.keys()[n]
+                #self.hint = "给%s发%s:" % (c[self.to][0],s[self.type])
+            else:
+                printl("编号超出好友范围")
+                return
+        if not self.phone.send_sms(toUTF8(line.split(" ")[1]),self.to):
+            printl("发送短信失败")
 
-            if not self.phone.send_sms(toUTF8(text),num):
-                printl("发送短信失败")
-        else:
-            if len(num) < 4:
-                n = int(num)
-                if n >= 0 and n < len(self.phone.contactlist):
-                    self.to = c.keys()[n]
-                    #self.hint = "给%s发%s:" % (c[self.to][0],s[self.type])
-                else:
-                    printl("编号超出好友范围")
-                    return
     def do_find(self,line):
         pass
     def do_add(self,line):
