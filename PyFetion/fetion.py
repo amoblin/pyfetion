@@ -94,10 +94,10 @@ class CLI(cmd.Cmd):
         global status
         cmd.Cmd.__init__(self)
         self.phone=phone
-        #self.prompt = termcolor.colored(status[self.phone.presence],"green") + ">"
-        self.prompt = status[self.phone.presence] + ">"
+        self.sta="\033[32m" + status[self.phone.presence] + "\033[0m"
         self.to=""
         self.type="msg"
+        self.prompt=self.sta + ">"
 
     def default(self, line):
         '''快速发送消息'''
@@ -190,43 +190,36 @@ class CLI(cmd.Cmd):
 
     def do_status(self,i):
         '''用法: status [i]\n改变状态:0 隐身 1 离开 2 离线 3 忙碌 4 在线.'''
-        i = int(i)
-        self.phone.set_presence(status.keys()[i])
-        color=""
-        if i==0:
-            color = "grey"
-        elif i == 1:
-            color = "blue"
-        elif i == 2:
-            color = "cyan"
-        elif i == 3:
-            color = "red"
-        elif i == 4:
-            color = "green"
-        #self.prompt = termcolor.colored(status[self.phone.presence],color) + ">"
-        self.prompt = status[self.phone.presence] + ">"
+        if i:
+            i = int(i)
+            self.phone.set_presence(status.keys()[i])
+            color=""
+            if i==0:
+                self.sta= "\033[35m" + status[self.phone.presence] + "\033[0m"
+            elif i == 1:
+                self.sta= "\033[34m" + status[self.phone.presence] + "\033[0m"
+            elif i == 2:
+                self.sta= "\033[36m" + status[self.phone.presence] + "\033[0m"
+            elif i == 3:
+                self.sta= "\033[31m" + status[self.phone.presence] + "\033[0m"
+            elif i == 4:
+                self.sta= "\033[32m" + status[self.phone.presence] + "\033[0m"
+            self.prompt = self.sta + ">"
+        else:
+            print ""
 
     def do_msg(self,line):
         """msg [num] [text]
         send text to num"""
-        self.type=line
-        num = line.split(" ")[0]
-        text = line.split(" ")[1]
+        if not line:
+            print u'用法：msg [num] [text]'
+            return
+        cmd = line.split()
+        if len(cmd)==1:
+            return
+        num = cmd[0]
+        text = cmd[1]
         self.to=num
-
-        i = self.phone.presence
-        color="green"
-        if i==0:
-            color = "grey"
-        elif i == 1:
-            color = "blue"
-        elif i == 2:
-            color = "cyan"
-        elif i == 3:
-            color = "red"
-        elif i == 4:
-            color = "green"
-
 
         c = copy(self.phone.contactlist)
 
@@ -240,16 +233,21 @@ class CLI(cmd.Cmd):
                 self.to = c.keys()[n]
 
         if self.phone.send_msg(toUTF8(text),self.to):
-            print u'send message to ', self.to
-            #self.prompt = termcolor.colored(status[self.phone.presence],color)+"@"+c[self.to][0]+">"
-            self.prompt = status[self.phone.presence],color+"@"+c[self.to][0]+">"
+            #print u'send message to ', self.to
+            self.prompt = self.sta +"@"+c[self.to][0]+">"
         else:
             printl("发送消息失败")
 
     def do_sms(self,line):
-        '''sms [num] text
+        '''sms [num] [text]
         send sms to num'''
-        num = line.split(" ")[0]
+        if not line:
+            print u'用法：sms [num] [text]'
+            return
+        cmd = line.split()
+        if len(cmd) ==1:
+            return
+        num = cmd[0]
         c = copy(self.phone.contactlist)
         if len(num)==11:
             '''cellphone number'''
@@ -293,6 +291,30 @@ class CLI(cmd.Cmd):
         self.phone.logout()
         sys.exit(0)
 
+    def do_help(self,line):
+        self.clear()
+        printl("""
+------------------------基于PyFetion的一个CLI飞信客户端-------------------------
+
+        命令不区分大小写中括号里为命令的缩写
+
+        help[?]           显示本帮助信息
+        ls                列出在线好友列表
+        la                列出所有好友列表
+        ll                列出序号，备注，昵称，所在组，状态
+        status[st]        改变飞信状态 参数[0隐身 1离开 2忙碌 3在线]
+                          参数为空显示自己的状态
+        msg[m]            发送消息 参数为序号或手机号 使用quit退出
+        sms[s]            发送短信 参数为序号或手机号 使用quit退出
+                          参数为空给自己发短信
+        find[f]           查看好友是否隐身 参数为序号或手机号
+        add[a]            添加好友 参数为手机号或飞信号
+        del[d]            删除好友 参数为手机号或飞信号
+        cls[c]            清屏
+        quit[q]           退出对话状态
+        exit[x]           退出飞信
+
+        """)
 
     def clear(self):
         if os.name == "posix":
