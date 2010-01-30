@@ -11,6 +11,7 @@ from copy import copy
 import time
 import sys
 import exceptions
+import cmd,pynotify,termcolor
 
 
 status = {FetionHidden:"短信在线",FetionOnline:"在线",FetionBusy:"忙碌",FetionAway:"离开",FetionOffline:"离线"}
@@ -33,17 +34,28 @@ class fetion_recv(Thread):
                 #在登录时BN消息(e)有可能含有多个uri 
                 for i in e[1]:
                     if time.time() - start_time > 5:
-                        printl('')
-                        printl("%s [%s]" % (self.phone.contactlist[i[0]][0],status[i[1]]))
+                        #printl('')
+                        #printl("%s [%s]" % (self.phone.contactlist[i[0]][0],status[i[1]]))
+                        pynotify.init("Some Application or Title")
+                        self.notification = pynotify.Notification(self.phone.contactlist[i[0]][0], status[i[1]], "dialog-warning")
+                        self.notification.set_urgency(pynotify.URGENCY_NORMAL)
+                        self.notification.set_timeout(1)
+                        self.notification.show()
+
                         
             elif e[0] == "Message":
                 #获得消息
                 #系统广告 忽略之
                 if e[1] not in self.phone.contactlist:
                     continue
-                printl('')
-                printl("%s从%s发来:%s" % (self.phone.contactlist[e[1]][0],s[e[3]],e[2]))
-                printl('')
+                #printl('')
+                #printl("%s从%s发来:%s" % (self.phone.contactlist[e[1]][0],s[e[3]],e[2]))
+                #printl('')
+                pynotify.init("Some Application or Title")
+                self.notification = pynotify.Notification(self.phone.contactlist[i[0]][0], status[i[1]], "dialog-warning")
+                self.notification.set_urgency(pynotify.URGENCY_NORMAL)
+                self.notification.set_timeout(1)
+                self.notification.show()
             elif e[0] == "deregistered":
                 self.phone.receving = False
                 printl('')
@@ -70,6 +82,206 @@ class fetion_alive(Thread):
 
         printl("停止发送心跳")
 
+class CLI(cmd.Cmd):
+    '''解析命令行参数'''
+    def __init__(self,phone):
+        global status
+        cmd.Cmd.__init__(self)
+        self.phone=phone
+        self.prompt = termcolor.colored(status[self.phone.presence],"green") + ">"
+        self.to=""
+        self.type="msg"
+
+    def default(self, line):
+        print line, u' 不支持的命令!'
+
+    def do_la(self,line):
+        '''用法:ls\n显示所有好友列表.'''
+        if not self.phone.contactlist:
+            printl("没有好友")
+            return
+        if self.phone.contactlist.values()[0] != 0:
+            pass
+        #当好友列表中昵称为空重新获取
+        else:
+            self.phone.get_contactlist()
+
+        #print self.phone.contactlist
+        c = copy(self.phone.contactlist)
+        num = len(c.items())
+        for i in c:
+            if c[i][0] == '':
+                c[i][0] = i[4:4+9]
+        printl(status[FetionOnline])
+        for i in range(num):
+            if c[c.keys()[i]][2] != FetionHidden and c[c.keys()[i]][2] != FetionOffline:
+                printl("%-4d%-20s" % (i,c[c.keys()[i]][0]))
+
+        printl(status[FetionHidden])
+        for i in range(num):
+            if c[c.keys()[i]][2] == FetionHidden:
+                printl("%-4d%-20s" % (i,c[c.keys()[i]][0]))
+
+        printl(status[FetionOffline])
+        for i in range(num):
+            if c[c.keys()[i]][2] == FetionOffline:
+                printl("%-4d%-20s" % (i,c[c.keys()[i]][0]))
+
+    def do_ls(self,line):
+        '''用法: ls\n 显示在线好友列表'''
+        if not self.phone.contactlist:
+            printl("没有好友")
+            return
+        if self.phone.contactlist.values()[0] != 0:
+            pass
+        #当好友列表中昵称为空重新获取
+        else:
+            self.phone.get_contactlist()
+
+        #print self.phone.contactlist
+        c = copy(self.phone.contactlist)
+        num = len(c.items())
+        for i in c:
+            if c[i][0] == '':
+                c[i][0] = i[4:4+9]
+        printl(status[FetionOnline])
+        for i in range(num):
+            if c[c.keys()[i]][2] != FetionHidden and c[c.keys()[i]][2] != FetionOffline:
+                printl("%-4d%-20s" % (i,c[c.keys()[i]][0]))
+
+    def do_ll(self,line):
+        '''用法: ll\n列出好友详细信息.'''
+        if not self.phone.contactlist:
+            printl("没有好友")
+            return
+        if self.phone.contactlist.values()[0] != 0:
+            pass
+        #当好友列表中昵称为空重新获取
+        else:
+            self.phone.get_contactlist()
+
+        #print self.phone.contactlist
+        c = copy(self.phone.contactlist)
+        num = len(c.items())
+        for i in c:
+            if c[i][0] == '':
+                c[i][0] = i[4:4+9]
+        for i in range(num):
+            printl("%-4d%-20s%-4s" % (i,c[c.keys()[i]][0],status[c[c.keys()[i]][2]]))
+
+    def do_status(self,line,i):
+        '''用法: status [i]\n改变状态:0 隐身 1 在线 2 忙碌 3离开 4 离线 [i].'''
+        self.phone.set_presence(status.keys()[i])
+        self.prompt = termcolor.colored(status[self.phone.presence],"grey") + ">"
+
+    def do_msg(self,line,num="15901049672",text="hello"):
+        """msg [num] [text]
+        send text to num"""
+        self.type=line
+        self.to=num
+
+
+        if self.to in self.phone.session:
+            self.phone.session[self.to]._send_msg(toUTF8(text))
+            return
+        if not self.phone.send_msg(toUTF8(text),self.to):
+            printl("发送消息失败")
+
+    def do_sms(self,line,num="15901049672",text="你好，我是阿默林"):
+        '''sms [num] text
+        send sms to num'''
+        c = copy(self.phone.contactlist)
+        if lne(num)==11:
+            for c in c.items():
+                if c[1][1] == cmd[1]:
+                    self.to = c[0]
+                    self.hint = "给%s发%s:" % (c[1][0],s[self.type])
+
+            if not self.to:
+                printl("手机号不是您的好友")
+
+            if not self.phone.send_sms(toUTF8(text),num):
+                printl("发送短信失败")
+        else:
+            if len(num) < 4:
+                n = int(num)
+                if n >= 0 and n < len(self.phone.contactlist):
+                    self.to = c.keys()[n]
+                    #self.hint = "给%s发%s:" % (c[self.to][0],s[self.type])
+                else:
+                    printl("编号超出好友范围")
+                    return
+    def do_find(self,line):
+        pass
+    def do_add(self,line):
+        pass
+    def do_del(self,line):
+        pass
+
+    def do_cls(self,line):
+        pass
+
+    def do_quit(self,line):
+        '''quit\nquit the current session'''
+        pass
+
+    def do_exit(self,line):
+        '''exit\nexit the program'''
+        self.phone.logout()
+        sys.exit(0)
+
+    def help_help(self):
+        self.clear()
+        printl("""
+------------------------基于PyFetion的一个CLI飞信客户端-------------------------
+
+        命令不区分大小写中括号里为命令的缩写
+
+        help[?]           显示本帮助信息
+        ls                列出在线好友列表
+        la                列出所有好友列表
+        ll                列出序号，备注，昵称，所在组，状态
+        status[st]        改变飞信状态 参数[0隐身 1离开 2忙碌 3在线]
+                          参数为空显示自己的状态
+        msg[m]            发送消息 参数为序号或手机号 使用quit退出
+        sms[s]            发送短信 参数为序号或手机号 使用quit退出
+                          参数为空给自己发短信
+        find[f]           查看好友是否隐身 参数为序号或手机号
+        add[a]            添加好友 参数为手机号或飞信号
+        del[d]            删除好友 参数为手机号或飞信号
+        cls[c]            清屏
+        quit[q]           退出对话状态
+        exit[x]           退出飞信
+
+        """)
+
+    def clear(self):
+        if os.name == "posix":
+            os.system("clear")
+        else:
+            os.system("cls")
+
+    def do_EOF(self, line):
+        return True
+    
+    def postloop(self):
+        print
+
+    def weather(self,phone):
+        '''send weather to the phone. only can use in my computer~~'''
+        file = open("/home/laputa/data/WeatherForecast","r")
+        lines = file.readlines()
+        weather=""
+        i=0
+        for line in lines:
+            if i<9:
+                weather = weather + line
+                i=i+1
+            else:
+                break
+        self.phone.send_sms(weather,phone)
+
+
 class fetion_input(Thread):
     def __init__(self,phone):
         self.phone = phone
@@ -80,14 +292,15 @@ class fetion_input(Thread):
 
     def run(self):
         sleep(1)
-        self.help()
-        while self.phone.receving:
-            try:
-                self.hint = toEcho(self.hint)
-            except :
-                pass
+        #self.help()
+        #while self.phone.receving:
+        #    try:
+        #        self.hint = toEcho(self.hint)
+        #    except :
+        #        pass
 
-            self.cmd(raw_input(self.hint))
+        #    #self.cmd(raw_input(self.hint))
+        CLI(self.phone).cmdloop()
         printl("退出输入状态")
 
     def cmd(self,arg):
@@ -393,14 +606,14 @@ def getpass(msg):
     sys.stdout.write('\n')
     return passwd
     
-    
 
-def main(argv=None):
+def main(phone):
     
-    mobile_no = raw_input(toEcho("手机号:"))
-    passwd = getpass(toEcho("口  令:"))
+    #mobile_no = raw_input(toEcho("手机号:"))
+    #passwd = getpass(toEcho("口  令:"))
 
-    phone = PyFetion(mobile_no,passwd,"TCP",debug="FILE")
+    #phone = PyFetion(mobile_no,passwd,"TCP",debug="FILE")
+    #phone = PyFetion("15901049672","lenovo0","TCP",debug="FILE")
     try:
         t = progressBar()
         t.start()
@@ -448,5 +661,16 @@ def main(argv=None):
     #time.strftime(time_format,time.gmtime())
     
 if __name__ == "__main__":
-    sys.exit(main())
-
+    if len(sys.argv) > 3:
+        print u'参数错误'
+    elif len(sys.argv) == 3:
+        mobile_no = sys.argv[1]
+        passwd = sys.argv[2]
+    else:
+        if len(sys.argv) == 2:
+            mobile_no = sys.argv[1]
+        elif len(sys.argv) == 1:
+            mobile_no = raw_input(toEcho("手机号:"))
+        passwd = getpass(toEcho("口  令:"))
+    phone = PyFetion(mobile_no,passwd,"TCP",debug="FILE")
+    sys.exit(main(phone))
