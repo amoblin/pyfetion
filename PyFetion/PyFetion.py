@@ -958,6 +958,11 @@ class PyFetion(SIPC):
         """get detail information of me"""
         self.get("INFO","GetPersonalInfo")
         response = self.send()
+        nickname = re.findall('nickname="(.+?)"',response)[0]
+        impresa = re.findall('impresa="(.+?)"',response)[0]
+        response = []
+        response.append(nickname)
+        response.append(impresa)
         return response
 
     def get_info(self,who=None):

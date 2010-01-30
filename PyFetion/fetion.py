@@ -97,13 +97,14 @@ class CLI(cmd.Cmd):
         self.sta="\033[32m" + status[self.phone.presence] + "\033[0m"
         self.to=""
         self.type="msg"
-        self.prompt=self.sta + ">"
+        self.prompt=self.phone.get_personal_info()[0] + ">"
 
     def default(self, line):
         '''会话中：快速发送消息'''
+        c = copy(self.phone.contactlist)
         if self.to:
             if self.phone.send_msg(toUTF8(line),self.to):
-                print u'send to ',self.to
+                print u'send to ',c[self.to][0]
             else:
                 printl("发送消息失败")
         else:
@@ -190,7 +191,7 @@ class CLI(cmd.Cmd):
             if c[i][0] == '':
                 c[i][0] = i[4:4+9]
         for i in range(num):
-            printl("%-4d%-20s%-11d%-4s" % (i,c[c.keys()[i]][0],c[c.keys()[i]][1],status[c[c.keys()[i]][2]]))
+            printl("%-4d\t%-20s\t%-11s\t%-4s" % (i,c[c.keys()[i]][0],c[c.keys()[i]][1],status[c[c.keys()[i]][2]]))
 
     def do_status(self,i):
         '''用法: status [i]\n改变状态:0 隐身 1 离开 2 离线 3 忙碌 4 在线.'''
@@ -210,7 +211,7 @@ class CLI(cmd.Cmd):
                 self.sta= "\033[32m" + status[self.phone.presence] + "\033[0m"
             self.prompt = self.sta + ">"
         else:
-            print ""
+            print status[self.phone.presence],u"\n用法: status [i]\n改变状态:0 隐身 1 离开 2 离线 3 忙碌 4 在线."
 
     def do_msg(self,line):
         """msg [num] [text]
@@ -232,10 +233,10 @@ class CLI(cmd.Cmd):
             n = int(num)
             if n >= 0 and n < len(self.phone.contactlist):
                 self.to = c.keys()[n]
-            self.prompt = self.sta +"@"+c[self.to][0]+">"
+            self.prompt = self.sta +" [to] "+c[self.to][0]+">"
             if len(cmd)>1:
                 if self.phone.send_msg(toUTF8(cmd[1]),self.to):
-                    print u'send message to ', self.to
+                    print u'send message to ', c[self.to][0]
                 else:
                     printl("发送消息失败")
 
