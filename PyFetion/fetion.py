@@ -17,6 +17,7 @@ import cmd,pynotify,termcolor
 status = {FetionHidden:"短信在线",FetionOnline:"在线",FetionBusy:"忙碌",FetionAway:"离开",FetionOffline:"离线"}
 
 class fetion_recv(Thread):
+    '''receive message'''
     def __init__(self,phone):
         self.phone = phone
         Thread.__init__(self)
@@ -52,7 +53,7 @@ class fetion_recv(Thread):
                 #printl("%s从%s发来:%s" % (self.phone.contactlist[e[1]][0],s[e[3]],e[2]))
                 #printl('')
                 pynotify.init("Some Application or Title")
-                self.notification = pynotify.Notification(self.phone.contactlist[i[0]][0], status[i[1]], "dialog-warning")
+                self.notification = pynotify.Notification(self.phone.contactlist[e[1]][0], e[2], "dialog-warning")
                 self.notification.set_urgency(pynotify.URGENCY_NORMAL)
                 self.notification.set_timeout(1)
                 self.notification.show()
@@ -68,6 +69,7 @@ class fetion_recv(Thread):
         printl("停止接收消息")
 
 class fetion_alive(Thread):
+    '''keep alive'''
     def __init__(self,phone):
         self.phone = phone
         Thread.__init__(self)
@@ -169,10 +171,22 @@ class CLI(cmd.Cmd):
         for i in range(num):
             printl("%-4d%-20s%-4s" % (i,c[c.keys()[i]][0],status[c[c.keys()[i]][2]]))
 
-    def do_status(self,line,i):
-        '''用法: status [i]\n改变状态:0 隐身 1 在线 2 忙碌 3离开 4 离线 [i].'''
+    def do_status(self,i):
+        '''用法: status [i]\n改变状态:0 隐身 1 离开 2 离线 3 忙碌 4 在线.'''
+        i = int(i)
         self.phone.set_presence(status.keys()[i])
-        self.prompt = termcolor.colored(status[self.phone.presence],"grey") + ">"
+        color=""
+        if i==0:
+            color = "grey"
+        elif i == 1:
+            color = "blue"
+        elif i == 2:
+            color = "cyan"
+        elif i == 3:
+            color = "red"
+        elif i == 4:
+            color = "green"
+        self.prompt = termcolor.colored(status[self.phone.presence],color) + ">"
 
     def do_msg(self,line,num="15901049672",text="hello"):
         """msg [num] [text]
@@ -221,6 +235,11 @@ class CLI(cmd.Cmd):
     def do_cls(self,line):
         pass
 
+    def do_history(self,line):
+        '''usage:history
+        show the chat history information'''
+        pass
+
     def do_quit(self,line):
         '''quit\nquit the current session'''
         pass
@@ -230,30 +249,6 @@ class CLI(cmd.Cmd):
         self.phone.logout()
         sys.exit(0)
 
-    def help_help(self):
-        self.clear()
-        printl("""
-------------------------基于PyFetion的一个CLI飞信客户端-------------------------
-
-        命令不区分大小写中括号里为命令的缩写
-
-        help[?]           显示本帮助信息
-        ls                列出在线好友列表
-        la                列出所有好友列表
-        ll                列出序号，备注，昵称，所在组，状态
-        status[st]        改变飞信状态 参数[0隐身 1离开 2忙碌 3在线]
-                          参数为空显示自己的状态
-        msg[m]            发送消息 参数为序号或手机号 使用quit退出
-        sms[s]            发送短信 参数为序号或手机号 使用quit退出
-                          参数为空给自己发短信
-        find[f]           查看好友是否隐身 参数为序号或手机号
-        add[a]            添加好友 参数为手机号或飞信号
-        del[d]            删除好友 参数为手机号或飞信号
-        cls[c]            清屏
-        quit[q]           退出对话状态
-        exit[x]           退出飞信
-
-        """)
 
     def clear(self):
         if os.name == "posix":
@@ -505,36 +500,6 @@ class fetion_input(Thread):
         else:
             printl("不能识别的命令 请使用help")
 
-    def clear(self):
-        if os.name == "posix":
-            os.system("clear")
-        else:
-            os.system("cls")
-
-    def help(self):
-        self.clear()
-        printl("""
-------------------------基于PyFetion的一个CLI飞信客户端-------------------------
-
-        命令不区分大小写中括号里为命令的缩写
-
-        help[?]           显示本帮助信息
-        ls[l]             列出好友列表
-        status[st]        改变飞信状态 参数[0隐身 1离开 2忙碌 3在线]
-                          参数为空显示自己的状态
-        msg[m]            发送消息 参数为序号或手机号 使用quit退出
-        sms[s]            发送短信 参数为序号或手机号 使用quit退出
-                          参数为空给自己发短信
-        find[f]           查看好友是否隐身 参数为序号或手机号
-        add[a]            添加好友 参数为手机号或飞信号
-        del[d]            删除好友 参数为手机号或飞信号
-        cls[c]            清屏
-        quit[q]           退出对话状态
-        exit[x]           退出飞信
-
-        """)
-
-
 
 class progressBar(Thread):
     def __init__(self):
@@ -607,13 +572,25 @@ def getpass(msg):
     return passwd
     
 
-def main(phone):
-    
-    #mobile_no = raw_input(toEcho("手机号:"))
-    #passwd = getpass(toEcho("口  令:"))
+def login():
+    '''登录设置'''
+    if len(sys.argv) > 3:
+        print u'参数错误'
+    elif len(sys.argv) == 3:
+        mobile_no = sys.argv[1]
+        passwd = sys.argv[2]
+    else:
+        if len(sys.argv) == 2:
+            mobile_no = sys.argv[1]
+        elif len(sys.argv) == 1:
+            mobile_no = raw_input(toEcho("手机号:"))
+        passwd = getpass(toEcho("口  令:"))
+    phone = PyFetion(mobile_no,passwd,"TCP",debug="FILE")
+    return phone
 
-    #phone = PyFetion(mobile_no,passwd,"TCP",debug="FILE")
-    #phone = PyFetion("15901049672","lenovo0","TCP",debug="FILE")
+
+def main(phone):
+    '''main function'''
     try:
         t = progressBar()
         t.start()
@@ -661,16 +638,5 @@ def main(phone):
     #time.strftime(time_format,time.gmtime())
     
 if __name__ == "__main__":
-    if len(sys.argv) > 3:
-        print u'参数错误'
-    elif len(sys.argv) == 3:
-        mobile_no = sys.argv[1]
-        passwd = sys.argv[2]
-    else:
-        if len(sys.argv) == 2:
-            mobile_no = sys.argv[1]
-        elif len(sys.argv) == 1:
-            mobile_no = raw_input(toEcho("手机号:"))
-        passwd = getpass(toEcho("口  令:"))
-    phone = PyFetion(mobile_no,passwd,"TCP",debug="FILE")
+    phone = login()
     sys.exit(main(phone))
