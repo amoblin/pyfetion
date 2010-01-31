@@ -103,6 +103,7 @@ class CLI(cmd.Cmd):
         global status
         cmd.Cmd.__init__(self)
         self.phone=phone
+        self.to=""
         self.type="msg"
         self.nickname = self.phone.get_personal_info()[0]
         self.sta="\033[32m" + self.nickname + "\033[0m"
@@ -122,12 +123,13 @@ class CLI(cmd.Cmd):
     def do_test(self,line):
         if not line:
             return
-        c = self.phone.receive
+        c = self.phone.contactlist(line)
         print c
 
     def do_info(self,line):
         info = self.phone.get_personal_info()
-        print info
+        print u"昵称：",info[0]
+        print u"状态：",info[1]
 
     def do_la(self,line):
         '''用法:ls\n显示所有好友列表.'''
@@ -240,23 +242,6 @@ class CLI(cmd.Cmd):
             else:
                 printl("发送消息失败")
 
-        #c = copy(self.phone.contactlist)
-
-        #if len(num)==11:
-        #    if self.to in self.phone.session:
-        #        self.phone.session[self.to]._send_msg(toUTF8(text))
-        #        return
-        #elif len(num) < 4:
-        #    n = int(num)
-        #    if n >= 0 and n < len(self.phone.contactlist):
-        #        self.to = c.keys()[n]
-        #    self.prompt = self.sta +" [to] "+c[self.to][0]+">"
-        #    if len(cmd)>1:
-        #        if self.phone.send_msg(toUTF8(cmd[1]),self.to):
-        #            print u'send message to ', c[self.to][0]
-        #        else:
-        #            printl("发送消息失败")
-
     def do_sms(self,line):
         '''sms [num] [text]
         send sms to num'''
@@ -360,6 +345,11 @@ class CLI(cmd.Cmd):
             else:
                 printl("编号超出好友范围")
                 return
+        else:
+            '''昵称形式'''
+            for sip in c.keys():
+                if num == c[sip][0]:
+                    break;
         return sip
 
 
@@ -373,9 +363,12 @@ class CLI(cmd.Cmd):
             file = open("chat_history.dat","r")
             records = file.readlines()
             for record in records:
-                sip = record.split()[0]
-
-                print record
+                temp = record.split()
+                sip = temp[0]
+                time = temp[2]
+                text = temp[3]
+                nickname = self.get_nickname(sip)
+                print nickname," ",time,text
         else:
             sip = get_sip(line)
 
