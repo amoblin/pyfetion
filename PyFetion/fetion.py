@@ -14,7 +14,7 @@ import exceptions
 import cmd,wave
 #from PIL import ImageGrab
 
-ISOTIMEFORMAT='%Y-%m-%d %X'
+ISOTIMEFORMAT='%Y-%m-%d %H:%M:%S'
 
 status = {FetionHidden:"短信在线",FetionOnline:"在线",FetionBusy:"忙碌",FetionAway:"离开",FetionOffline:"离线"}
 
@@ -28,7 +28,6 @@ class fetion_recv(Thread):
         #self.phone.get_offline_msg()
         global status
         start_time = time.time()
-        s = {"PC":"电脑","PHONE":"手机"}
 
         #状态改变等消息在这里处理 收到的短信或者消息在recv中处理
         for e in self.phone.receive():
@@ -37,32 +36,15 @@ class fetion_recv(Thread):
                 #在登录时BN消息(e)有可能含有多个uri 
                 for i in e[1]:
                     if time.time() - start_time > 5:
-                        printl('')
-                        printl("%s(%s) [%s]" % (self.phone.contactlist[i[0]][0],self.phone.get_order(i[0]),status[i[1]]))
-
-                        #pynotify.init("Some Application or Title")
-                        #self.notification = pynotify.Notification(self.phone.contactlist[i[0]][0], status[i[1]], "dialog-warning")
-                        #self.notification.set_urgency(pynotify.URGENCY_NORMAL)
-                        #self.notification.set_timeout(1)
-                        #self.notification.show()
-
-                        
+                        self.show_status(i[0],status[i[1]])
             elif e[0] == "Message":
                 #获得消息
                 #系统广告 忽略之
                 if e[1] not in self.phone.contactlist:
                     continue
-                printl('')
-                printl("%s(%s)从%s发来:%s" % (self.phone.contactlist[e[1]][0],self.phone.get_order(e[1]),s[e[3]],e[2]))
-                printl('')
-                
+                self.show_message(e)
                 self.save_chat(e[1],e[2])
 
-                #pynotify.init("Some Application or Title")
-                #self.notification = pynotify.Notification(self.phone.contactlist[e[1]][0], e[2], "dialog-warning")
-                #self.notification.set_urgency(pynotify.URGENCY_NORMAL)
-                #self.notification.set_timeout(1)
-                #self.notification.show()
 
             elif e[0] == "deregistered":
                 self.phone.receving = False
@@ -75,9 +57,37 @@ class fetion_recv(Thread):
 
         printl("停止接收消息")
 
+    def show_status(self,sip,status):
+        try:
+            import pynotify
+            outstr = self.phone.contactlist[sip][0]+'['+ self.phone.get_order(sip) + ']'
+            pynotify.init("Some Application or Title")
+            self.notification = pynotify.Notification(outstr, status, "dialog-warning")
+            self.notification.set_urgency(pynotify.URGENCY_NORMAL)
+            self.notification.set_timeout(1)
+            self.notification.show()
+        except :
+            #os.popen('play message.ogg')
+            print u"\n",self.phone.contactlist[sip][0],"[",self.phone.get_order(sip),"]现在的状态：",status
+
+    def show_message(self,e):
+        s = {"PC":"电脑","PHONE":"手机"}
+        try:
+            import pynotify
+            outstr = self.phone.contactlist[e[1]][0] + '[' + self.phone.get_order(e[1]) + ']'
+            pynotify.init("Some Application or Title")
+            self.notification = pynotify.Notification(outstr, e[2], "dialog-warning")
+            self.notification.set_urgency(pynotify.URGENCY_NORMAL)
+            self.notification.set_timeout(1)
+            self.notification.show()
+        except:
+            os.system('play message.ogg')
+            print self.phone.contactlist[e[1]][0],'[',self.phone.get_order(e[1]),']@',s[e[3]],"说：",e[2]
+        
+
     def save_chat(self,sip,text):
         file = open("chat_history.dat","a")
-        record = sip + " " + time.strftime(ISOTIMEFORMAT) + " " + text + "\n"
+        record = sip.split("@")[0].split(":")[1] + " " + time.strftime(ISOTIMEFORMAT) + " " + text + "\n"
         file.write(record)
         file.close()
 
@@ -109,6 +119,11 @@ class CLI(cmd.Cmd):
         self.sta="\033[32m" + self.nickname + "\033[0m"
         self.prompt = self.sta + ">"
 
+    def  preloop(self):
+        print u"欢迎使用PyFetion!\n要获得帮助请输入help或help help.\n更多信息请访问http://code.google.com/p/pytool/\n"
+        print u"当前\033[32m在线\033[0m或\033[36m离开\033[0m或\033[31m忙碌\033[0m的好友为(ls命令可以得到下面结果)："
+        self.do_ls("")
+
     def default(self, line):
         '''会话中：快速发送消息'''
         c = copy(self.phone.contactlist)
@@ -133,7 +148,9 @@ class CLI(cmd.Cmd):
         print u"状态：",info[1]
 
     def do_la(self,line):
-        '''用法:ls\n显示所有好友列表.'''
+        '''用法:ls\n显示所有好友列表.
+            \033[34m短信在线\t\033[35m离线
+            \033[36m离开\t\033[31m忙碌\t\033[32m在线\033[0m'''
         if not self.phone.contactlist:
             printl("没有好友")
             return
@@ -151,9 +168,13 @@ class CLI(cmd.Cmd):
                 c[i][0] = i[4:4+9]
         printl(status[FetionOnline])
         for i in range(num):
-            if c[c.keys()[i]][2] != FetionHidden and c[c.keys()[i]][2] != FetionOffline:
+            if c[c.keys()[i]][2] == FetionOnline :
                 #printl("%-4d%-20s" % (i,c[c.keys()[i]][0]))
                 print "\033[32m",str(i),c[c.keys()[i]][0],"\t",
+            elif c[c.keys()[i]][2] == FetionBusy:
+                print "\033[31m",str(i),c[c.keys()[i]][0],"\t",
+            elif c[c.keys()[i]][2] == FetionAway:
+                print "\033[36m",str(i),c[c.keys()[i]][0],"\t",
         print "\033[0m"
 
         printl(status[FetionHidden])
@@ -161,19 +182,20 @@ class CLI(cmd.Cmd):
         for i in range(num):
             if c[c.keys()[i]][2] == FetionHidden:
                 #printl("%-4d%-20s" % (i,c[c.keys()[i]][0]))
-                print "\033[35m",str(i),c[c.keys()[i]][0],"\t",
-        print ""
+                print "\033[34m",str(i),c[c.keys()[i]][0],"\t",
+        print "\033[0m"
 
         printl(status[FetionOffline])
         outstr = ""
         for i in range(num):
             if c[c.keys()[i]][2] == FetionOffline:
                 #printl("%-4d%-20s" % (i,c[c.keys()[i]][0]))
-                print "\033[36m",str(i),c[c.keys()[i]][0],"\t",
-        print ""
+                print "\033[35m",str(i),c[c.keys()[i]][0],"\t",
+        print "\033[0m"
 
     def do_ls(self,line):
-        '''用法: ls\n 显示在线好友列表'''
+        '''用法: ls\n 显示在线好友列表
+            \033[36m离开\t\033[31m忙碌\t\033[32m在线\033[0m'''
         if not self.phone.contactlist:
             printl("没有好友")
             return
@@ -190,12 +212,18 @@ class CLI(cmd.Cmd):
             if c[i][0] == '':
                 c[i][0] = i[4:4+9]
         for i in range(num):
-            if c[c.keys()[i]][2] != FetionHidden and c[c.keys()[i]][2] != FetionOffline:
+            if c[c.keys()[i]][2] == FetionOnline:
                 print u"\033[32m",str(i),c[c.keys()[i]][0],"\t",
+            elif c[c.keys()[i]][2] == FetionBusy:
+                print u"\033[31m",str(i),c[c.keys()[i]][0],"\t",
+            elif c[c.keys()[i]][2] == FetionAway:
+                print u"\033[36m",str(i),c[c.keys()[i]][0],"\t",
         print "\033[0m"
 
     def do_ll(self,line):
-        '''用法: ll\n列出好友详细信息:序号，昵称，手机号，状态.'''
+        '''用法: ll\n列出好友详细信息:序号，昵称，手机号，状态.
+            \033[34m短信在线\t\033[35m离线
+            \033[36m离开\t\033[31m忙碌\t\033[32m在线\033[0m'''
         if not self.phone.contactlist:
             printl("没有好友")
             return
@@ -269,7 +297,7 @@ class CLI(cmd.Cmd):
 
     def save_chat(self,sip,text):
         file = open("chat_history.dat","a")
-        record ="out!" + sip + " " + time.strftime(ISOTIMEFORMAT) + " " + text + "\n"
+        record ="out!" + self.get_fetion_number(sip) + " " + time.strftime(ISOTIMEFORMAT) + " " + text + "\n"
         file.write(record)
         file.close()
 
@@ -353,7 +381,20 @@ class CLI(cmd.Cmd):
             else:
                 printl("删除%s失败"%line)
         else:
+            sip = self.get_sip(line)
+            if sip != "":
+                num = self.get_fetion_number(sip)
+                code = self.phone.delete(num)
+                if code:
+                    printl("删除%s成功"%num)
+                else:
+                    printl("删除%s失败"%num)
             printl("命令格式:del[d] 手机号或飞信号")
+
+    def get_fetion_number(self,uri):
+        '''get fetion number from uri'''
+        return uri.split("@")[0].split(":")[1]
+
 
     def do_get(self,line):
         self.phone.get_offline_msg()
@@ -401,30 +442,45 @@ class CLI(cmd.Cmd):
 
 
     def get_nickname(self,sip):
-        return self.phone.contactlist[sip][0]
+        if sip.startswith("sip:"):
+            return self.phone.contactlist[sip][0]
+        else:
+            for uri in self.phone.contactlist:
+                if sip in uri:
+                    return self.phone.contactlist[uri][0]
+
 
     def do_history(self,line):
         '''usage:history
         show the chat history information'''
-        if not line:
-            file = open("chat_history.dat","r")
-            records = file.readlines()
-            for record in records:
-                temp = record.split()
-                time = temp[2].split(":")[0]+":"+temp[2].split(":")[1]
-                text = temp[3]
+        file = open("chat_history.dat","r")
+        records = file.readlines()
+        for record in records:
+            temp = record.split()
+            time = temp[2].split(":")[0]+":"+temp[2].split(":")[1]
+            text = temp[3]
 
-                sips = temp[0].split("!")
-                if len(sips)==2:
-                    sip = sips[1]
-                    nickname = self.get_nickname(sip)
+            fetions = temp[0].split("!")
+            if len(fetions)==2:
+                fetion= fetions[1]
+                if not line:
+                    nickname = self.get_nickname(fetion)
                     print self.nickname," to ",nickname," ",time,text
                 else:
-                    sip=sips[0]
-                    nickname = self.get_nickname(sip)
+                    sip = self.get_sip(line)
+                    num = self.get_fetion_number(sip)
+                    if num == fetion:
+                        print self.nickname," to ",nickname," ",time,text
+            else:
+                fetion=fetions[0]
+                if not line:
+                    nickname = self.get_nickname(fetion)
                     print nickname," to ",self.nickname," ",time,text
-        else:
-            sip = get_sip(line)
+                else:
+                    sip = self.get_sip(line)
+                    num = self.get_fetion_number(sip)
+                    if num == fetion:
+                        print nickname," to ",self.nickname," ",time,text
 
     def do_quit(self,line):
         '''quit\nquit the current session'''
