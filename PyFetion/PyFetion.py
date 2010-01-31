@@ -983,6 +983,7 @@ class PyFetion(SIPC):
         return response
 
 
+
     def set_info(self,info):
         contacts = re.findall('<contact (.+?)</contact>',info)
         contacts += re.findall('<presence (.+?)</presence>',info)

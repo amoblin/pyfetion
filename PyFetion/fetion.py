@@ -14,6 +14,7 @@ import exceptions
 import cmd
 #import pynotify,termcolor
 
+ISOTIMEFORMAT='%Y-%m-%d %X'
 
 status = {FetionHidden:"短信在线",FetionOnline:"在线",FetionBusy:"忙碌",FetionAway:"离开",FetionOffline:"离线"}
 
@@ -54,6 +55,8 @@ class fetion_recv(Thread):
                 printl('')
                 printl("%s(%s)从%s发来:%s" % (self.phone.contactlist[e[1]][0],self.phone.get_order(e[1]),s[e[3]],e[2]))
                 printl('')
+                
+                self.save_chat(e[1],e[2])
 
                 #pynotify.init("Some Application or Title")
                 #self.notification = pynotify.Notification(self.phone.contactlist[e[1]][0], e[2], "dialog-warning")
@@ -71,6 +74,12 @@ class fetion_recv(Thread):
                 self.phone.receving = False
 
         printl("停止接收消息")
+
+    def save_chat(self,sip,text):
+        file = open("chat_history.dat","a")
+        record = sip + " " + time.strftime(ISOTIMEFORMAT) + " " + text + "\n"
+        file.write(record)
+        file.close()
 
 class fetion_alive(Thread):
     '''keep alive'''
@@ -94,10 +103,10 @@ class CLI(cmd.Cmd):
         global status
         cmd.Cmd.__init__(self)
         self.phone=phone
-        self.sta="\033[32m" + status[self.phone.presence] + "\033[0m"
-        self.to=""
         self.type="msg"
-        self.prompt=self.phone.get_personal_info()[0] + ">"
+        self.nickname = self.phone.get_personal_info()[0]
+        self.sta="\033[32m" + self.nickname + "\033[0m"
+        self.prompt = self.sta + ">"
 
     def default(self, line):
         '''会话中：快速发送消息'''
@@ -200,15 +209,15 @@ class CLI(cmd.Cmd):
             self.phone.set_presence(status.keys()[i])
             color=""
             if i==0:
-                self.sta= "\033[35m" + status[self.phone.presence] + "\033[0m"
+                self.sta= "\033[35m" + self.nickname  + "\033[0m"
             elif i == 1:
-                self.sta= "\033[34m" + status[self.phone.presence] + "\033[0m"
+                self.sta= "\033[34m" + self.nickname + "\033[0m"
             elif i == 2:
-                self.sta= "\033[36m" + status[self.phone.presence] + "\033[0m"
+                self.sta= "\033[36m" + self.nickname + "\033[0m"
             elif i == 3:
-                self.sta= "\033[31m" + status[self.phone.presence] + "\033[0m"
+                self.sta= "\033[31m" + self.nickname + "\033[0m"
             elif i == 4:
-                self.sta= "\033[32m" + status[self.phone.presence] + "\033[0m"
+                self.sta= "\033[32m" + self.nickname + "\033[0m"
             self.prompt = self.sta + ">"
         else:
             print status[self.phone.presence],u"\n用法: status [i]\n改变状态:0 隐身 1 离开 2 离线 3 忙碌 4 在线."
@@ -222,23 +231,31 @@ class CLI(cmd.Cmd):
         cmd = line.split()
         num = cmd[0]
 
-        c = copy(self.phone.contactlist)
+        self.to = self.get_sip(num)
+        nickname = self.get_nickname(self.to)
+        self.prompt = self.sta +" [to] "+nickname+">"
+        if len(cmd)>1:
+            if self.phone.send_msg(toUTF8(cmd[1]),self.to):
+                print u'send message to ', nickname
+            else:
+                printl("发送消息失败")
 
+        #c = copy(self.phone.contactlist)
 
-        if len(num)==11:
-            if self.to in self.phone.session:
-                self.phone.session[self.to]._send_msg(toUTF8(text))
-                return
-        elif len(num) < 4:
-            n = int(num)
-            if n >= 0 and n < len(self.phone.contactlist):
-                self.to = c.keys()[n]
-            self.prompt = self.sta +" [to] "+c[self.to][0]+">"
-            if len(cmd)>1:
-                if self.phone.send_msg(toUTF8(cmd[1]),self.to):
-                    print u'send message to ', c[self.to][0]
-                else:
-                    printl("发送消息失败")
+        #if len(num)==11:
+        #    if self.to in self.phone.session:
+        #        self.phone.session[self.to]._send_msg(toUTF8(text))
+        #        return
+        #elif len(num) < 4:
+        #    n = int(num)
+        #    if n >= 0 and n < len(self.phone.contactlist):
+        #        self.to = c.keys()[n]
+        #    self.prompt = self.sta +" [to] "+c[self.to][0]+">"
+        #    if len(cmd)>1:
+        #        if self.phone.send_msg(toUTF8(cmd[1]),self.to):
+        #            print u'send message to ', c[self.to][0]
+        #        else:
+        #            printl("发送消息失败")
 
     def do_sms(self,line):
         '''sms [num] [text]
@@ -250,24 +267,11 @@ class CLI(cmd.Cmd):
         if len(cmd) ==1:
             return
         num = cmd[0]
-        c = copy(self.phone.contactlist)
-        if len(num)==11:
-            '''cellphone number'''
-            for c in c.items():
-                if c[1][1] == num:
-                    self.to = c[0]
-            if not self.to:
-                printl("手机号不是您的好友")
-        elif len(num) < 4:
-            n = int(num)
-            if n >= 0 and n < len(self.phone.contactlist):
-                self.to = c.keys()[n]
-                #self.hint = "给%s发%s:" % (c[self.to][0],s[self.type])
-            else:
-                printl("编号超出好友范围")
-                return
+        self.to=self.get_sip(line)
         if not self.phone.send_sms(toUTF8(line.split(" ")[1]),self.to):
             printl("发送短信失败")
+        else:
+            print u'已发送 '#,self.get_nickname(self.to)
 
     def do_find(self,line):
         '''隐身查询'''
@@ -338,10 +342,42 @@ class CLI(cmd.Cmd):
     def do_cls(self,line):
         pass
 
+    def get_sip(self,num):
+        '''get sip and nickname from phone number or order'''
+        c = copy(self.phone.contactlist)
+        sip=""
+        if len(num)==11:
+            '''cellphone number'''
+            for c in c.items():
+                if c[1][1] == num:
+                    sip = c[0]
+            if not sip:
+                printl("手机号不是您的好友")
+        elif len(num) < 4:
+            n = int(num)
+            if n >= 0 and n < len(self.phone.contactlist):
+                sip = c.keys()[n]
+            else:
+                printl("编号超出好友范围")
+                return
+        return sip
+
+
+    def get_nickname(self,sip):
+        return self.phone.contactlist[sip][0]
+
     def do_history(self,line):
         '''usage:history
         show the chat history information'''
-        pass
+        if not line:
+            file = open("chat_history.dat","r")
+            records = file.readlines()
+            for record in records:
+                sip = record.split()[0]
+
+                print record
+        else:
+            sip = get_sip(line)
 
     def do_quit(self,line):
         '''quit\nquit the current session'''
