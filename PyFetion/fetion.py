@@ -11,8 +11,8 @@ from copy import copy
 import time
 import sys
 import exceptions
-import cmd
-#import pynotify,termcolor
+import cmd,wave
+#from PIL import ImageGrab
 
 ISOTIMEFORMAT='%Y-%m-%d %X'
 
@@ -124,10 +124,10 @@ class CLI(cmd.Cmd):
     def do_test(self,line):
         if not line:
             return
-        c = self.phone.contactlist(line)
-        print c
 
     def do_info(self,line):
+        '''用法：info
+            查看个人信息'''
         info = self.phone.get_personal_info()
         print u"昵称：",info[0]
         print u"状态：",info[1]
@@ -152,17 +152,25 @@ class CLI(cmd.Cmd):
         printl(status[FetionOnline])
         for i in range(num):
             if c[c.keys()[i]][2] != FetionHidden and c[c.keys()[i]][2] != FetionOffline:
-                printl("%-4d%-20s" % (i,c[c.keys()[i]][0]))
+                #printl("%-4d%-20s" % (i,c[c.keys()[i]][0]))
+                print "\033[32m",str(i),c[c.keys()[i]][0],"\t",
+        print "\033[0m"
 
         printl(status[FetionHidden])
+        outstr = ""
         for i in range(num):
             if c[c.keys()[i]][2] == FetionHidden:
-                printl("%-4d%-20s" % (i,c[c.keys()[i]][0]))
+                #printl("%-4d%-20s" % (i,c[c.keys()[i]][0]))
+                print "\033[35m",str(i),c[c.keys()[i]][0],"\t",
+        print ""
 
         printl(status[FetionOffline])
+        outstr = ""
         for i in range(num):
             if c[c.keys()[i]][2] == FetionOffline:
-                printl("%-4d%-20s" % (i,c[c.keys()[i]][0]))
+                #printl("%-4d%-20s" % (i,c[c.keys()[i]][0]))
+                print "\033[36m",str(i),c[c.keys()[i]][0],"\t",
+        print ""
 
     def do_ls(self,line):
         '''用法: ls\n 显示在线好友列表'''
@@ -183,7 +191,8 @@ class CLI(cmd.Cmd):
                 c[i][0] = i[4:4+9]
         for i in range(num):
             if c[c.keys()[i]][2] != FetionHidden and c[c.keys()[i]][2] != FetionOffline:
-                printl("%-4d%-20s" % (i,c[c.keys()[i]][0]))
+                print u"\033[32m",str(i),c[c.keys()[i]][0],"\t",
+        print "\033[0m"
 
     def do_ll(self,line):
         '''用法: ll\n列出好友详细信息:序号，昵称，手机号，状态.'''
@@ -203,7 +212,16 @@ class CLI(cmd.Cmd):
             if c[i][0] == '':
                 c[i][0] = i[4:4+9]
         for i in range(num):
-            printl("%-4d\t%-20s\t%-11s\t%-4s" % (i,c[c.keys()[i]][0],c[c.keys()[i]][1],status[c[c.keys()[i]][2]]))
+            if c[c.keys()[i]][2] == FetionHidden:
+                printl("\033[35m%-4d\t%-20s\t%-11s\t%-4s\033[0m" % (i,c[c.keys()[i]][0],c[c.keys()[i]][1],status[c[c.keys()[i]][2]]))
+            elif c[c.keys()[i]][2] == FetionAway:
+                printl("\033[34m%-4d\t%-20s\t%-11s\t%-4s\033[0m" % (i,c[c.keys()[i]][0],c[c.keys()[i]][1],status[c[c.keys()[i]][2]]))
+            elif c[c.keys()[i]][2] == FetionOffline:
+                printl("\033[36m%-4d\t%-20s\t%-11s\t%-4s\033[0m" % (i,c[c.keys()[i]][0],c[c.keys()[i]][1],status[c[c.keys()[i]][2]]))
+            elif c[c.keys()[i]][2] == FetionBusy:
+                printl("\033[31m%-4d\t%-20s\t%-11s\t%-4s\033[0m" % (i,c[c.keys()[i]][0],c[c.keys()[i]][1],status[c[c.keys()[i]][2]]))
+            elif c[c.keys()[i]][2] == FetionOnline:
+                printl("\033[32m%-4d\t%-20s\t%-11s\t%-4s\033[0m" % (i,c[c.keys()[i]][0],c[c.keys()[i]][1],status[c[c.keys()[i]][2]]))
 
     def do_status(self,i):
         '''用法: status [i]\n改变状态:0 隐身 1 离开 2 离线 3 忙碌 4 在线.'''
@@ -212,14 +230,19 @@ class CLI(cmd.Cmd):
             self.phone.set_presence(status.keys()[i])
             color=""
             if i==0:
+                '''FetionHidden'''
                 self.sta= "\033[35m" + self.nickname  + "\033[0m"
             elif i == 1:
+                '''FetionAway'''
                 self.sta= "\033[34m" + self.nickname + "\033[0m"
             elif i == 2:
+                '''FetionOffline'''
                 self.sta= "\033[36m" + self.nickname + "\033[0m"
             elif i == 3:
+                '''FetionBusy'''
                 self.sta= "\033[31m" + self.nickname + "\033[0m"
             elif i == 4:
+                '''FetionOnline'''
                 self.sta= "\033[32m" + self.nickname + "\033[0m"
             self.prompt = self.sta + ">"
         else:
@@ -251,8 +274,8 @@ class CLI(cmd.Cmd):
         file.close()
 
     def do_sms(self,line):
-        '''sms [num] [text]
-        send sms to num'''
+        '''用法：sms [num] [text]
+            send sms to num'''
         if not line:
             print u'用法：sms [num] [text]'
             return
@@ -267,41 +290,44 @@ class CLI(cmd.Cmd):
             print u'已发送 '#,self.get_nickname(self.to)
 
     def do_find(self,line):
-        '''隐身查询'''
+        '''用法：find [序号|手机号]|all
+            隐身查询'''
         if not line:
             print u'用法：find [num]'
             return
+        if line=='all':
+            c = copy(self.phone.contactlist)
+            num = len(c.items())
+            for i in c:
+                if c[i][0] == '':
+                    c[i][0] = i[4:4+9]
+            for i in range(num):
+                if c[c.keys()[i]][2] == FetionHidden:
+                    ret = self.phone.start_chat(c.keys()[i])
+                    if ret:
+                        if ret == c[c.keys()[i]][2]:
+                            print "\033[35m",str(i),c[c.keys()[i]][0],"\t",
+                        #elif ret == FetionOnline:
+                            #print c[c.keys()[i]][0],u"不在线"
+            print "\033[0m"
+            return
         cmd = line.split()
-        num = cmd[0]
-        c = copy(self.phone.contactlist)
-        if len(num)==11:
-            '''cellphone number'''
-            for c in c.items():
-                if c[1][1] == num:
-                    to = c[0]
-            if not to:
-                printl("手机号不是您的好友")
-        elif len(num) < 4:
-            n = int(num)
-            if n >= 0 and n < len(self.phone.contactlist):
-                to = c.keys()[n]
-            else:
-                printl("编号超出好友范围")
-                return
+        to = self.get_sip(cmd[0])
+        nickname = self.get_nickname(to)
         if self.phone.contactlist[to][2] != FetionHidden:
             printl("拜托人家写着在线你还要查!")
         else:
             ret = self.phone.start_chat(to)
             if ret:
-                if ret == c[to][2]:
-                    printl("该好友果然隐身")
+                if ret == self.phone.contactlist[to][2]:
+                    print nickname, u"果然隐身"
                 elif ret == FetionOnline:
-                    printl("该好友的确不在线哦")
+                    print nickname, u"的确不在线哦"
             else:
                 printl("获取隐身信息出错")
 
     def do_add(self,line):
-        '''add buddy'''
+        '''用法：add 手机号或飞信号'''
         if not line:
             printl("命令格式:add[a] 手机号或飞信号")
             return
@@ -331,6 +357,19 @@ class CLI(cmd.Cmd):
 
     def do_get(self,line):
         self.phone.get_offline_msg()
+
+    def do_update(self,line):
+        '''用法：update [状态]
+            更新飞信状态'''
+        pass
+
+    def do_scrot(self,line):
+        if line:
+            print "用法:scrot"
+            return
+        #im = ImageGrab.grab()
+        #name = time.strftime("%Y%m%d%H%M%S") + ".png"
+        #im.save(name)
 
     def do_cls(self,line):
         pass
@@ -398,7 +437,7 @@ class CLI(cmd.Cmd):
         self.phone.logout()
         sys.exit(0)
 
-    def do_help(self,line):
+    def help_help(self):
         self.clear()
         printl("""
 ------------------------基于PyFetion的一个CLI飞信客户端-------------------------
@@ -415,6 +454,8 @@ class CLI(cmd.Cmd):
         sms[s]            发送短信 参数为序号或手机号 使用quit退出
                           参数为空给自己发短信
         find[f]           查看好友是否隐身 参数为序号或手机号
+        info[i]           查看个人信息
+        update[u]         更新状态
         add[a]            添加好友 参数为手机号或飞信号
         del[d]            删除好友 参数为手机号或飞信号
         cls[c]            清屏
@@ -434,6 +475,19 @@ class CLI(cmd.Cmd):
     
     def postloop(self):
         print
+
+    #shortcut
+    do_q = do_quit
+    do_h = do_history
+    do_x = do_exit
+    do_m = do_msg
+    do_s = do_sms
+    do_st = do_status
+    do_f = do_find
+    do_a = do_add
+    do_d = do_del
+    do_i = do_info
+    do_u = do_update
 
 class fetion_input(Thread):
     def __init__(self,phone):
