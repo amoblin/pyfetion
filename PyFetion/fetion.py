@@ -115,6 +115,7 @@ class CLI(cmd.Cmd):
         if self.to:
             if self.phone.send_msg(toUTF8(line),self.to):
                 print u'send to ',c[self.to][0]
+                self.save_chat(self.to,line)
             else:
                 printl("发送消息失败")
         else:
@@ -238,9 +239,16 @@ class CLI(cmd.Cmd):
         self.prompt = self.sta +" [to] "+nickname+">"
         if len(cmd)>1:
             if self.phone.send_msg(toUTF8(cmd[1]),self.to):
+                self.save_chat(self.to,cmd[1])
                 print u'send message to ', nickname
             else:
                 printl("发送消息失败")
+
+    def save_chat(self,sip,text):
+        file = open("chat_history.dat","a")
+        record ="out!" + sip + " " + time.strftime(ISOTIMEFORMAT) + " " + text + "\n"
+        file.write(record)
+        file.close()
 
     def do_sms(self,line):
         '''sms [num] [text]
@@ -364,11 +372,18 @@ class CLI(cmd.Cmd):
             records = file.readlines()
             for record in records:
                 temp = record.split()
-                sip = temp[0]
-                time = temp[2]
+                time = temp[2].split(":")[0]+":"+temp[2].split(":")[1]
                 text = temp[3]
-                nickname = self.get_nickname(sip)
-                print nickname," ",time,text
+
+                sips = temp[0].split("!")
+                if len(sips)==2:
+                    sip = sips[1]
+                    nickname = self.get_nickname(sip)
+                    print self.nickname," to ",nickname," ",time,text
+                else:
+                    sip=sips[0]
+                    nickname = self.get_nickname(sip)
+                    print nickname," to ",self.nickname," ",time,text
         else:
             sip = get_sip(line)
 
