@@ -22,6 +22,7 @@ from threading import RLock
 from threading import Thread
 from select import select
 from Queue import Queue
+from copy import copy
 
 
 FetionOnline = "400"
@@ -1114,15 +1115,23 @@ class PyFetion(SIPC):
                 return uri
         return None
 
-    def get_order(self,who):
+    def get_order(self,sip):
         '''get order number from sip'''
-        i=0
-        for uri in self.contactlist:
-            if who == uri:
+
+        c = copy(self.contactlist)
+        num = len(c.items())
+        for i in range(num):
+            if sip == c.keys()[i]:
                 return i
-            else:
-                i = i+1
         return None
+        #i=0
+        #for uri in self.contactlist.keys():
+        #    print uri
+        #    if sip == uri:
+        #        return i
+        #    else:
+        #        i = i+1
+        #return None
 
     def send_msg(self,msg,to=None,flag="CatMsg"):
         """more info at send_sms function.

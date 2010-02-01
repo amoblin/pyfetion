@@ -154,7 +154,10 @@ class CLI(cmd.Cmd):
         self.to=""
         self.type="msg"
         self.nickname = self.phone.get_personal_info()[0]
-        self.sta="\033[32m" + self.nickname + "\033[0m"
+        if self.phone.presence == '0':
+            self.sta="\033[35m" + self.nickname + "\033[0m"
+        elif self.phone.presence == '4':
+            self.sta="\033[32m" + self.nickname + "\033[0m"
         self.prompt = self.sta + ">"
 
     def  preloop(self):
@@ -175,34 +178,33 @@ class CLI(cmd.Cmd):
             print line, u' 不支持的命令!'
 
     def do_test(self,line):
-        file = open("/home/laputa/data/WeatherForecast")
-        lines = file.readlines()
-        weather_info = "Weather in Bejing:\n"
-        i = 0
-        for line in lines:
-            if i==9:
-                break
-            weather_info = weather_info + line
-            i = i + 1
-        if self.phone.send_sms(toUTF8(weather_info)):
-            print "success"
+        pass
 
     def do_info(self,line):
         '''用法：info
             查看个人信息'''
         if line:
-            try:
-                to = self.get_sip(line)
-                print u"uri：",to
-                print u"序号：",self.phone.get_order(to)
-                print u"昵称：",self.get_nickname(to)
-                print u"飞信号：",self.get_fetion_number(to)
-            except:
-                pass
+            to = self.get_sip(line)
+            if to == None:
+                return
+            info = self.get_info(to)
+            print u"序号：",self.phone.get_order(to)
+            print u"昵称：",info[0]
+            print u"飞信号：",self.get_fetion_number(to)
+            print u"手机号：",info[1]
+            print u"状态：",status[info[2]]
             return
         info = self.phone.get_personal_info()
         print u"昵称：",info[0]
         print u"状态：",info[1]
+
+    def get_info(self,uri):
+        c = copy(self.phone.contactlist)
+        response=[]
+        response.append(c[uri][0])
+        response.append(c[uri][1])
+        response.append(c[uri][2])
+        return response
 
     def do_la(self,line):
         '''用法:ls\n显示所有好友列表.
@@ -238,6 +240,7 @@ class CLI(cmd.Cmd):
         outstr = ""
         for i in range(num):
             if c[c.keys()[i]][2] == FetionHidden:
+                #print c.keys()[i]
                 #printl("%-4d%-20s" % (i,c[c.keys()[i]][0]))
                 print "\033[34m",str(i),c[c.keys()[i]][0],"\t",
         print "\033[0m"
@@ -254,12 +257,10 @@ class CLI(cmd.Cmd):
         '''用法: ls\n 显示在线好友列表
             \033[36m离开\t\033[31m忙碌\t\033[32m在线\033[0m'''
         if line:
-            try:
                 to=self.get_sip(line)
+                if to == None:
+                    return
                 print self.phone.get_order(to),self.get_nickname(to)
-            except:
-                pass
-            return
         if not self.phone.contactlist:
             printl("没有好友")
             return
@@ -349,7 +350,10 @@ class CLI(cmd.Cmd):
         cmd = line.split()
         num = cmd[0]
 
-        self.to = self.get_sip(num)
+        to = self.get_sip(num)
+        if to == None:
+            return
+        self.to = to
         nickname = self.get_nickname(self.to)
         self.prompt = self.sta +" [to] "+nickname+">"
         if len(cmd)>1:
@@ -376,6 +380,8 @@ class CLI(cmd.Cmd):
             num = cmd[0]
         num = cmd[0]
         to=self.get_sip(num)
+        if to == None:
+            return
         if not self.phone.send_sms(toUTF8(cmd[1]),to):
             printl("发送短信失败")
         else:
@@ -405,6 +411,8 @@ class CLI(cmd.Cmd):
             return
         cmd = line.split()
         to = self.get_sip(cmd[0])
+        if to == None:
+            return
         nickname = self.get_nickname(to)
         if self.phone.contactlist[to][2] != FetionHidden:
             printl("拜托人家写着在线你还要查!")
@@ -446,14 +454,14 @@ class CLI(cmd.Cmd):
                 printl("删除%s失败"%line)
         else:
             sip = self.get_sip(line)
-            if sip != "":
-                num = self.get_fetion_number(sip)
-                code = self.phone.delete(num)
-                if code:
-                    printl("删除%s成功"%num)
-                else:
-                    printl("删除%s失败"%num)
-            printl("命令格式:del[d] 手机号或飞信号")
+            if sip == None:
+                return
+            num = self.get_fetion_number(sip)
+            code = self.phone.delete(num)
+            if code:
+                printl("删除%s成功"%num)
+            else:
+                printl("删除%s失败"%num)
 
     def get_fetion_number(self,uri):
         '''get fetion number from uri'''
@@ -489,9 +497,11 @@ class CLI(cmd.Cmd):
             return
         if len(num)==11:
             '''cellphone number'''
+            sip = ""
             for c in c.items():
                 if c[1][1] == num:
-                    return c[0]
+                    sip=c[0]
+                    return sip
             if not sip:
                 printl("手机号不是您的好友")
         elif len(num) == 9:
@@ -506,7 +516,6 @@ class CLI(cmd.Cmd):
                 return c.keys()[n]
             else:
                 printl("编号超出好友范围")
-                return
 
     def get_nickname(self,sip):
         return self.phone.contactlist[sip][0]
@@ -554,7 +563,7 @@ class CLI(cmd.Cmd):
         self.phone.logout()
         sys.exit(0)
 
-    def help_help(self):
+    def do_help(self):
         self.clear()
         printl("""
 ------------------------基于PyFetion的一个CLI飞信客户端-------------------------
