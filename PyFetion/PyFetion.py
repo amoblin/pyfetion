@@ -1124,7 +1124,6 @@ class PyFetion(SIPC):
                 i = i+1
         return None
 
-
     def send_msg(self,msg,to=None,flag="CatMsg"):
         """more info at send_sms function.
            if someone's fetion is offline, msg will send to phone,

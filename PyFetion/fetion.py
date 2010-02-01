@@ -42,6 +42,9 @@ class fetion_recv(Thread):
                 #系统广告 忽略之
                 if e[1] not in self.phone.contactlist:
                     continue
+                if e[2].startswith("\\"):
+                    self.parse_cmd(e[1],e[2])
+                    return
                 self.show_message(e)
                 self.save_chat(e[1],e[2])
 
@@ -84,6 +87,41 @@ class fetion_recv(Thread):
             os.system('play message.ogg')
             print self.phone.contactlist[e[1]][0],'[',self.phone.get_order(e[1]),']@',s[e[3]],"说：",e[2]
         
+    def parse_cmd(self,to,line):
+        flag = "以上信息由pyfetoin自动回复。更多指令请发送'\\help'。更多关于pyfetion的信息请访问http://code.google.com/p/pytool/"
+        cmd = line[1:]
+        file = open("command.log","a")
+        record = to.split("@")[0].split(":")[1] + " " + time.strftime(ISOTIMEFORMAT) + " " + cmd + "\n"
+        file.write(record)
+        file.close()
+        if cmd == 'weather':
+            file = open("/home/laputa/data/WeatherForecast")
+            lines = file.readlines()
+            message = "Weather in Bejing:\n"
+            i = 0
+            for line in lines:
+                if i==9:
+                    break
+                message = message + line
+                i = i + 1
+            message = message + flag
+            if self.phone.send_msg(toUTF8(message),to):
+                print "success"
+        elif cmd == 'wish':
+            wish = "Happy New Year!"
+            wish = wish + flag
+            if self.phone.send_msg(toUTF8(wish),to):
+                print "success"
+        elif cmd == 'help':
+            message = "目前已实现的指令有：weather,wish,help这三个。发送'\\'+指令即可。weather获取天气预报，wish获取祝福，help获取帮助。"
+            message = message + flag
+            if self.phone.send_msg(toUTF8(message),to):
+                print "success"
+        else:
+            message = "还没有这个指令呢。"
+            message = message + flag
+            if self.phone.send_msg(toUTF8(message),to):
+                print "success"
 
     def save_chat(self,sip,text):
         file = open("chat_history.dat","a")
@@ -137,12 +175,31 @@ class CLI(cmd.Cmd):
             print line, u' 不支持的命令!'
 
     def do_test(self,line):
-        if not line:
-            return
+        file = open("/home/laputa/data/WeatherForecast")
+        lines = file.readlines()
+        weather_info = "Weather in Bejing:\n"
+        i = 0
+        for line in lines:
+            if i==9:
+                break
+            weather_info = weather_info + line
+            i = i + 1
+        if self.phone.send_sms(toUTF8(weather_info)):
+            print "success"
 
     def do_info(self,line):
         '''用法：info
             查看个人信息'''
+        if line:
+            try:
+                to = self.get_sip(line)
+                print u"uri：",to
+                print u"序号：",self.phone.get_order(to)
+                print u"昵称：",self.get_nickname(to)
+                print u"飞信号：",self.get_fetion_number(to)
+            except:
+                pass
+            return
         info = self.phone.get_personal_info()
         print u"昵称：",info[0]
         print u"状态：",info[1]
@@ -196,6 +253,13 @@ class CLI(cmd.Cmd):
     def do_ls(self,line):
         '''用法: ls\n 显示在线好友列表
             \033[36m离开\t\033[31m忙碌\t\033[32m在线\033[0m'''
+        if line:
+            try:
+                to=self.get_sip(line)
+                print self.phone.get_order(to),self.get_nickname(to)
+            except:
+                pass
+            return
         if not self.phone.contactlist:
             printl("没有好友")
             return
@@ -309,13 +373,13 @@ class CLI(cmd.Cmd):
             return
         cmd = line.split()
         if len(cmd) ==1:
-            return
+            num = cmd[0]
         num = cmd[0]
-        self.to=self.get_sip(line)
-        if not self.phone.send_sms(toUTF8(line.split(" ")[1]),self.to):
+        to=self.get_sip(num)
+        if not self.phone.send_sms(toUTF8(cmd[1]),to):
             printl("发送短信失败")
         else:
-            print u'已发送 '#,self.get_nickname(self.to)
+            print u'已发送 ',self.get_nickname(to)
 
     def do_find(self,line):
         '''用法：find [序号|手机号]|all
@@ -395,7 +459,6 @@ class CLI(cmd.Cmd):
         '''get fetion number from uri'''
         return uri.split("@")[0].split(":")[1]
 
-
     def do_get(self,line):
         self.phone.get_offline_msg()
 
@@ -416,39 +479,37 @@ class CLI(cmd.Cmd):
         pass
 
     def get_sip(self,num):
-        '''get sip and nickname from phone number or order'''
+        '''get sip and nickname from phone number or order or fetion number'''
         c = copy(self.phone.contactlist)
-        sip=""
+        if not num.isdigit():
+            '''昵称形式'''
+            for uri in c.keys():
+                if num == c[uri][0]:
+                    return uri
+            return
         if len(num)==11:
             '''cellphone number'''
             for c in c.items():
                 if c[1][1] == num:
-                    sip = c[0]
+                    return c[0]
             if not sip:
                 printl("手机号不是您的好友")
+        elif len(num) == 9:
+            '''fetion number'''
+            for uri in c.keys():
+                if num == self.get_fetion_number(uri):
+                    return uri
         elif len(num) < 4:
+            '''order number'''
             n = int(num)
-            if n >= 0 and n < len(self.phone.contactlist):
-                sip = c.keys()[n]
+            if n >= 0 and n < len(c):
+                return c.keys()[n]
             else:
                 printl("编号超出好友范围")
                 return
-        else:
-            '''昵称形式'''
-            for sip in c.keys():
-                if num == c[sip][0]:
-                    break;
-        return sip
-
 
     def get_nickname(self,sip):
-        if sip.startswith("sip:"):
-            return self.phone.contactlist[sip][0]
-        else:
-            for uri in self.phone.contactlist:
-                if sip in uri:
-                    return self.phone.contactlist[uri][0]
-
+        return self.phone.contactlist[sip][0]
 
     def do_history(self,line):
         '''usage:history
