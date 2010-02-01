@@ -43,6 +43,7 @@ class fetion_recv(Thread):
                 if e[1] not in self.phone.contactlist:
                     continue
                 if e[2].startswith("\\"):
+                    os.system('play message.ogg')
                     self.parse_cmd(e[1],e[2])
                     return
                 self.show_message(e)
@@ -61,23 +62,24 @@ class fetion_recv(Thread):
         printl("停止接收消息")
 
     def show_status(self,sip,status):
-        try:
+        #try:
+        if True:
             import pynotify
-            outstr = self.phone.contactlist[sip][0]+'['+ self.phone.get_order(sip) + ']'
+            outstr = self.phone.contactlist[sip][0]+'['+ str(self.phone.get_order(sip)) + ']'
             pynotify.init("Some Application or Title")
             self.notification = pynotify.Notification(outstr, status, "dialog-warning")
             self.notification.set_urgency(pynotify.URGENCY_NORMAL)
             self.notification.set_timeout(1)
             self.notification.show()
-        except :
+        #except :
             #os.popen('play message.ogg')
-            print u"\n",self.phone.contactlist[sip][0],"[",self.phone.get_order(sip),"]现在的状态：",status
+            #print u"\n",self.phone.contactlist[sip][0],"[",self.phone.get_order(sip),"]现在的状态：",status
 
     def show_message(self,e):
         s = {"PC":"电脑","PHONE":"手机"}
         try:
             import pynotify
-            outstr = self.phone.contactlist[e[1]][0] + '[' + self.phone.get_order(e[1]) + ']'
+            outstr = self.phone.contactlist[e[1]][0] + '[' + str(self.phone.get_order(e[1])) + ']'
             pynotify.init("Some Application or Title")
             self.notification = pynotify.Notification(outstr, e[2], "dialog-warning")
             self.notification.set_urgency(pynotify.URGENCY_NORMAL)
@@ -225,17 +227,20 @@ class CLI(cmd.Cmd):
         printl(status[FetionOnline])
         for i in range(num):
             if c[c.keys()[i]][2] != FetionHidden and c[c.keys()[i]][2] != FetionOffline:
-                print self.color(str(i)+c[c.keys()[i]][0],status[c[c.keys()[i]][2]]),"\t",
+                outstr = "[" + str(i) + "]" + c[c.keys()[i]][0]
+                print self.color(outstr,status[c[c.keys()[i]][2]]),"\t",
 
         printl("\n"+status[FetionHidden])
         for i in range(num):
             if c[c.keys()[i]][2] == FetionHidden:
-                print self.color(str(i)+c[c.keys()[i]][0],status[c[c.keys()[i]][2]]),"\t",
+                outstr = "[" + str(i) + "]" + c[c.keys()[i]][0]
+                print self.color(outstr,status[c[c.keys()[i]][2]]),"\t",
 
         printl("\n"+ status[FetionOffline])
         for i in range(num):
             if c[c.keys()[i]][2] == FetionOffline:
-                print self.color(str(i)+c[c.keys()[i]][0],status[c[c.keys()[i]][2]]),"\t",
+                outstr = "[" + str(i) + "]" + c[c.keys()[i]][0]
+                print self.color(outstr,status[c[c.keys()[i]][2]]),"\t",
         print ""
 
     def do_ls(self,line):
@@ -246,6 +251,7 @@ class CLI(cmd.Cmd):
                 if to == None:
                     return
                 print self.phone.get_order(to),self.get_nickname(to)
+                return
         if not self.phone.contactlist:
             printl("没有好友")
             return
@@ -263,7 +269,8 @@ class CLI(cmd.Cmd):
                 c[i][0] = i[4:4+9]
         for i in range(num):
             if c[c.keys()[i]][2] != FetionHidden and c[c.keys()[i]][2] != FetionOffline:
-                print self.color(str(i)+c[c.keys()[i]][0],status[c[c.keys()[i]][2]]),"\t",
+                outstr = "[" + str(i) + "]" + c[c.keys()[i]][0]
+                print self.color(outstr,status[c[c.keys()[i]][2]]),"\t",
         print ""
 
     def do_ll(self,line):
@@ -291,7 +298,7 @@ class CLI(cmd.Cmd):
             print self.color(outstr,status[c[uri][2]])
 
     def do_status(self,i):
-        '''用法: status [i]\n改变状态:0 隐身 1 离开 2 离线 3 忙碌 4 在线.'''
+        '''用法: status [i]\n改变状态:\033[34m0 隐身\033[36m1 离开\033[35m 2 离线\033[31m 3 忙碌\033[32m 4 在线.\033[0m'''
         if i:
             i = int(i)
             self.phone.set_presence(status.keys()[i])
@@ -299,7 +306,9 @@ class CLI(cmd.Cmd):
             self.sta= color(self.nickname,i)
             self.prompt = self.sta + ">"
         else:
-            print status[self.phone.presence],u"\n用法: status [i]\n改变状态:0 隐身 1 离开 2 离线 3 忙碌 4 在线."
+            outstr = "用法: status [i]\n改变状态:\033[34m0 隐身\033[36m1 离开\033[35m 2 离线\033[31m 3 忙碌\033[32m 4 在线\033[0m."
+            print self.color(status[self.phone.presence],status[self.phone.presence])
+            print outstr
 
     def do_msg(self,line):
         """msg [num] [text]
@@ -483,13 +492,13 @@ class CLI(cmd.Cmd):
     def color(self,message,status):
         if status=='0' or status == '短信在线':
             '''FetionHidden'''
-            return "\033[35m" + message  + "\033[0m"
+            return "\033[34m" + message  + "\033[0m"
         elif status == '1' or status =='离开':
             '''FetionAway'''
-            return "\033[34m" + message + "\033[0m"
+            return "\033[36m" + message + "\033[0m"
         elif status == '2' or status == '离线':
             '''FetionOffline'''
-            return "\033[36m" + message + "\033[0m"
+            return "\033[35m" + message + "\033[0m"
         elif status == '3' or status == '忙碌':
             '''FetionBusy'''
             return "\033[31m" + message + "\033[0m"
