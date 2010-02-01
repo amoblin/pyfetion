@@ -154,10 +154,7 @@ class CLI(cmd.Cmd):
         self.to=""
         self.type="msg"
         self.nickname = self.phone.get_personal_info()[0]
-        if self.phone.presence == '0':
-            self.sta="\033[35m" + self.nickname + "\033[0m"
-        elif self.phone.presence == '4':
-            self.sta="\033[32m" + self.nickname + "\033[0m"
+        self.sta=self.color(self.nickname,self.phone.presence)
         self.prompt = self.sta + ">"
 
     def  preloop(self):
@@ -227,31 +224,19 @@ class CLI(cmd.Cmd):
                 c[i][0] = i[4:4+9]
         printl(status[FetionOnline])
         for i in range(num):
-            if c[c.keys()[i]][2] == FetionOnline :
-                #printl("%-4d%-20s" % (i,c[c.keys()[i]][0]))
-                print "\033[32m",str(i),c[c.keys()[i]][0],"\t",
-            elif c[c.keys()[i]][2] == FetionBusy:
-                print "\033[31m",str(i),c[c.keys()[i]][0],"\t",
-            elif c[c.keys()[i]][2] == FetionAway:
-                print "\033[36m",str(i),c[c.keys()[i]][0],"\t",
-        print "\033[0m"
+            if c[c.keys()[i]][2] != FetionHidden and c[c.keys()[i]][2] != FetionOffline:
+                print self.color(str(i)+c[c.keys()[i]][0],status[c[c.keys()[i]][2]]),"\t",
 
-        printl(status[FetionHidden])
-        outstr = ""
+        printl("\n"+status[FetionHidden])
         for i in range(num):
             if c[c.keys()[i]][2] == FetionHidden:
-                #print c.keys()[i]
-                #printl("%-4d%-20s" % (i,c[c.keys()[i]][0]))
-                print "\033[34m",str(i),c[c.keys()[i]][0],"\t",
-        print "\033[0m"
+                print self.color(str(i)+c[c.keys()[i]][0],status[c[c.keys()[i]][2]]),"\t",
 
-        printl(status[FetionOffline])
-        outstr = ""
+        printl("\n"+ status[FetionOffline])
         for i in range(num):
             if c[c.keys()[i]][2] == FetionOffline:
-                #printl("%-4d%-20s" % (i,c[c.keys()[i]][0]))
-                print "\033[35m",str(i),c[c.keys()[i]][0],"\t",
-        print "\033[0m"
+                print self.color(str(i)+c[c.keys()[i]][0],status[c[c.keys()[i]][2]]),"\t",
+        print ""
 
     def do_ls(self,line):
         '''用法: ls\n 显示在线好友列表
@@ -277,13 +262,9 @@ class CLI(cmd.Cmd):
             if c[i][0] == '':
                 c[i][0] = i[4:4+9]
         for i in range(num):
-            if c[c.keys()[i]][2] == FetionOnline:
-                print u"\033[32m",str(i),c[c.keys()[i]][0],"\t",
-            elif c[c.keys()[i]][2] == FetionBusy:
-                print u"\033[31m",str(i),c[c.keys()[i]][0],"\t",
-            elif c[c.keys()[i]][2] == FetionAway:
-                print u"\033[36m",str(i),c[c.keys()[i]][0],"\t",
-        print "\033[0m"
+            if c[c.keys()[i]][2] != FetionHidden and c[c.keys()[i]][2] != FetionOffline:
+                print self.color(str(i)+c[c.keys()[i]][0],status[c[c.keys()[i]][2]]),"\t",
+        print ""
 
     def do_ll(self,line):
         '''用法: ll\n列出好友详细信息:序号，昵称，手机号，状态.
@@ -305,16 +286,9 @@ class CLI(cmd.Cmd):
             if c[i][0] == '':
                 c[i][0] = i[4:4+9]
         for i in range(num):
-            if c[c.keys()[i]][2] == FetionHidden:
-                printl("\033[35m%-4d\t%-20s\t%-11s\t%-4s\033[0m" % (i,c[c.keys()[i]][0],c[c.keys()[i]][1],status[c[c.keys()[i]][2]]))
-            elif c[c.keys()[i]][2] == FetionAway:
-                printl("\033[34m%-4d\t%-20s\t%-11s\t%-4s\033[0m" % (i,c[c.keys()[i]][0],c[c.keys()[i]][1],status[c[c.keys()[i]][2]]))
-            elif c[c.keys()[i]][2] == FetionOffline:
-                printl("\033[36m%-4d\t%-20s\t%-11s\t%-4s\033[0m" % (i,c[c.keys()[i]][0],c[c.keys()[i]][1],status[c[c.keys()[i]][2]]))
-            elif c[c.keys()[i]][2] == FetionBusy:
-                printl("\033[31m%-4d\t%-20s\t%-11s\t%-4s\033[0m" % (i,c[c.keys()[i]][0],c[c.keys()[i]][1],status[c[c.keys()[i]][2]]))
-            elif c[c.keys()[i]][2] == FetionOnline:
-                printl("\033[32m%-4d\t%-20s\t%-11s\t%-4s\033[0m" % (i,c[c.keys()[i]][0],c[c.keys()[i]][1],status[c[c.keys()[i]][2]]))
+            uri = c.keys()[i]
+            outstr = str(i)+"\t" + c[uri][0]+"\t" + c[uri][1]+"\t" + status[c[uri][2]]
+            print self.color(outstr,status[c[uri][2]])
 
     def do_status(self,i):
         '''用法: status [i]\n改变状态:0 隐身 1 离开 2 离线 3 忙碌 4 在线.'''
@@ -322,21 +296,7 @@ class CLI(cmd.Cmd):
             i = int(i)
             self.phone.set_presence(status.keys()[i])
             color=""
-            if i==0:
-                '''FetionHidden'''
-                self.sta= "\033[35m" + self.nickname  + "\033[0m"
-            elif i == 1:
-                '''FetionAway'''
-                self.sta= "\033[34m" + self.nickname + "\033[0m"
-            elif i == 2:
-                '''FetionOffline'''
-                self.sta= "\033[36m" + self.nickname + "\033[0m"
-            elif i == 3:
-                '''FetionBusy'''
-                self.sta= "\033[31m" + self.nickname + "\033[0m"
-            elif i == 4:
-                '''FetionOnline'''
-                self.sta= "\033[32m" + self.nickname + "\033[0m"
+            self.sta= color(self.nickname,i)
             self.prompt = self.sta + ">"
         else:
             print status[self.phone.presence],u"\n用法: status [i]\n改变状态:0 隐身 1 离开 2 离线 3 忙碌 4 在线."
@@ -400,14 +360,14 @@ class CLI(cmd.Cmd):
                 if c[i][0] == '':
                     c[i][0] = i[4:4+9]
             for i in range(num):
-                if c[c.keys()[i]][2] == FetionHidden:
-                    ret = self.phone.start_chat(c.keys()[i])
+                uri = c.keys()[i]
+                if c[uri][2] == FetionHidden:
+                    ret = self.phone.start_chat(uri)
                     if ret:
-                        if ret == c[c.keys()[i]][2]:
-                            print "\033[35m",str(i),c[c.keys()[i]][0],"\t",
+                        if ret == c[uri][2]:
+                            print self.color(str(i)+c[uri][0],status[c[uri][2]]),"\t",
                         #elif ret == FetionOnline:
                             #print c[c.keys()[i]][0],u"不在线"
-            print "\033[0m"
             return
         cmd = line.split()
         to = self.get_sip(cmd[0])
@@ -520,6 +480,23 @@ class CLI(cmd.Cmd):
     def get_nickname(self,sip):
         return self.phone.contactlist[sip][0]
 
+    def color(self,message,status):
+        if status=='0' or status == '短信在线':
+            '''FetionHidden'''
+            return "\033[35m" + message  + "\033[0m"
+        elif status == '1' or status =='离开':
+            '''FetionAway'''
+            return "\033[34m" + message + "\033[0m"
+        elif status == '2' or status == '离线':
+            '''FetionOffline'''
+            return "\033[36m" + message + "\033[0m"
+        elif status == '3' or status == '忙碌':
+            '''FetionBusy'''
+            return "\033[31m" + message + "\033[0m"
+        elif status == '4' or status == '在线':
+            '''FetionOnline'''
+            return "\033[32m" + message + "\033[0m"
+
     def do_history(self,line):
         '''usage:history
         show the chat history information'''
@@ -563,7 +540,7 @@ class CLI(cmd.Cmd):
         self.phone.logout()
         sys.exit(0)
 
-    def do_help(self):
+    def do_help(self,line):
         self.clear()
         printl("""
 ------------------------基于PyFetion的一个CLI飞信客户端-------------------------
@@ -580,7 +557,7 @@ class CLI(cmd.Cmd):
         sms[s]            发送短信 参数为序号或手机号 使用quit退出
                           参数为空给自己发短信
         find[f]           查看好友是否隐身 参数为序号或手机号
-        info[i]           查看个人信息
+        info[i]           查看好友详细信息,无参数则显示个人信息
         update[u]         更新状态
         add[a]            添加好友 参数为手机号或飞信号
         del[d]            删除好友 参数为手机号或飞信号
