@@ -43,7 +43,6 @@ class fetion_recv(Thread):
                 if e[1] not in self.phone.contactlist:
                     continue
                 if e[2].startswith("\\"):
-                    os.system('play message.ogg')
                     self.parse_cmd(e[1],e[2])
                     return
                 self.show_message(e)
@@ -62,8 +61,7 @@ class fetion_recv(Thread):
         printl("停止接收消息")
 
     def show_status(self,sip,status):
-        #try:
-        if True:
+        try:
             import pynotify
             outstr = self.phone.contactlist[sip][0]+'['+ str(self.phone.get_order(sip)) + ']'
             pynotify.init("Some Application or Title")
@@ -71,9 +69,9 @@ class fetion_recv(Thread):
             self.notification.set_urgency(pynotify.URGENCY_NORMAL)
             self.notification.set_timeout(1)
             self.notification.show()
-        #except :
+        except :
             #os.popen('play message.ogg')
-            #print u"\n",self.phone.contactlist[sip][0],"[",self.phone.get_order(sip),"]现在的状态：",status
+            print u"\n",self.phone.contactlist[sip][0],"[",self.phone.get_order(sip),"]现在的状态：",status
 
     def show_message(self,e):
         s = {"PC":"电脑","PHONE":"手机"}
@@ -156,8 +154,8 @@ class CLI(cmd.Cmd):
         self.to=""
         self.type="msg"
         self.nickname = self.phone.get_personal_info()[0]
-        self.sta=self.color(self.nickname,self.phone.presence)
-        self.prompt = self.sta + ">"
+        self.sta= self.nickname
+        self.prompt = self.color(self.sta,self.phone.presence) + ">"
 
     def  preloop(self):
         print u"欢迎使用PyFetion!\n要获得帮助请输入help或help help.\n更多信息请访问http://code.google.com/p/pytool/\n"
@@ -231,8 +229,12 @@ class CLI(cmd.Cmd):
                 print self.color(outstr,status[c[c.keys()[i]][2]]),"\t",
 
         printl("\n"+status[FetionHidden])
+        j = 0
         for i in range(num):
             if c[c.keys()[i]][2] == FetionHidden:
+                j = j + 1
+                if j%6==1:
+                    print ""
                 outstr = "[" + str(i) + "]" + c[c.keys()[i]][0]
                 print self.color(outstr,status[c[c.keys()[i]][2]]),"\t",
 
@@ -300,11 +302,9 @@ class CLI(cmd.Cmd):
     def do_status(self,i):
         '''用法: status [i]\n改变状态:\033[34m0 隐身\033[36m1 离开\033[35m 2 离线\033[31m 3 忙碌\033[32m 4 在线.\033[0m'''
         if i:
+            self.prompt = self.color(self.sta,i) + ">"
             i = int(i)
             self.phone.set_presence(status.keys()[i])
-            color=""
-            self.sta= color(self.nickname,i)
-            self.prompt = self.sta + ">"
         else:
             outstr = "用法: status [i]\n改变状态:\033[34m0 隐身\033[36m1 离开\033[35m 2 离线\033[31m 3 忙碌\033[32m 4 在线\033[0m."
             print self.color(status[self.phone.presence],status[self.phone.presence])
@@ -518,24 +518,34 @@ class CLI(cmd.Cmd):
 
             fetions = temp[0].split("!")
             if len(fetions)==2:
+                '''发出的信息'''
                 fetion= fetions[1]
+                sip = self.get_sip(fetion)
+                if sip == None:
+                    return
+                nickname = self.get_nickname(sip)
                 if not line:
-                    nickname = self.get_nickname(fetion)
+                    '''无参，全显示'''
                     print self.nickname," to ",nickname," ",time,text
                 else:
-                    sip = self.get_sip(line)
-                    num = self.get_fetion_number(sip)
-                    if num == fetion:
+                    '''有参，只显示特定好友历史记录'''
+                    the_sip = self.get_sip(line)
+                    if the_sip == None:
+                        return
+                    if the_sip == sip:
                         print self.nickname," to ",nickname," ",time,text
             else:
+                '''接收的信息'''
                 fetion=fetions[0]
+                sip = self.get_sip(fetion)
+                if sip == None:
+                    return
+                nickname = self.get_nickname(sip)
                 if not line:
-                    nickname = self.get_nickname(fetion)
                     print nickname," to ",self.nickname," ",time,text
                 else:
-                    sip = self.get_sip(line)
-                    num = self.get_fetion_number(sip)
-                    if num == fetion:
+                    the_sip = self.get_sip(line)
+                    if the_sip == sip:
                         print nickname," to ",self.nickname," ",time,text
 
     def do_quit(self,line):
