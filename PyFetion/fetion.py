@@ -16,6 +16,10 @@ import cmd,wave
 
 ISOTIMEFORMAT='%Y-%m-%d %H:%M:%S'
 
+userhome = os.path.expanduser('~')
+config_folder = os.path.join(userhome,'.pyfetion')
+config_file = os.path.join(config_folder,'config.txt')
+
 status = {FetionHidden:"短信在线",FetionOnline:"在线",FetionBusy:"忙碌",FetionAway:"离开",FetionOffline:"离线"}
 
 class fetion_recv(Thread):
@@ -42,7 +46,7 @@ class fetion_recv(Thread):
                 #系统广告 忽略之
                 if e[1] not in self.phone.contactlist:
                     continue
-                if e[2].startswith("\\"):
+                if e[2].startswith("!"):
                     self.parse_cmd(e[1],e[2])
                     return
                 self.show_message(e)
@@ -90,7 +94,9 @@ class fetion_recv(Thread):
     def parse_cmd(self,to,line):
         flag = "以上信息由pyfetoin自动回复。更多指令请发送'\\help'。更多关于pyfetion的信息请访问http://code.google.com/p/pytool/"
         cmd = line[1:]
-        file = open("command.log","a")
+        print cmd
+        command_log_file = os.path.join(config_folder,"command.log")
+        file = open(command_log_file,"a")
         record = to.split("@")[0].split(":")[1] + " " + time.strftime(ISOTIMEFORMAT) + " " + cmd + "\n"
         file.write(record)
         file.close()
@@ -112,6 +118,12 @@ class fetion_recv(Thread):
             wish = wish + flag
             if self.phone.send_msg(toUTF8(wish),to):
                 print "success"
+        elif cmd == 'mpc next':
+            os.system("mpc next")
+            print "success"
+        elif cmd == 'mpc prev':
+            os.system("mpc prev")
+            print "success"
         elif cmd == 'help':
             message = "目前已实现的指令有：weather,wish,help这三个。发送'\\'+指令即可。weather获取天气预报，wish获取祝福，help获取帮助。"
             message = message + flag
@@ -124,7 +136,8 @@ class fetion_recv(Thread):
                 print "success"
 
     def save_chat(self,sip,text):
-        file = open("chat_history.dat","a")
+        chat_history_file = os.path.join(config_folder,"chat_history.dat")
+        file = open(chat_history_file,"a")
         record = sip.split("@")[0].split(":")[1] + " " + time.strftime(ISOTIMEFORMAT) + " " + text + "\n"
         file.write(record)
         file.close()
@@ -154,8 +167,7 @@ class CLI(cmd.Cmd):
         self.to=""
         self.type="msg"
         self.nickname = self.phone.get_personal_info()[0]
-        self.sta= self.nickname
-        self.prompt = self.color(self.sta,self.phone.presence) + ">"
+        self.prompt = self.color(self.nickname,status[self.phone.presence]) + ">"
 
     def  preloop(self):
         print u"欢迎使用PyFetion!\n要获得帮助请输入help或help help.\n更多信息请访问http://code.google.com/p/pytool/\n"
@@ -167,7 +179,7 @@ class CLI(cmd.Cmd):
         c = copy(self.phone.contactlist)
         if self.to:
             if self.phone.send_msg(toUTF8(line),self.to):
-                print u'send to ',c[self.to][0]
+                print u'send to ',c[self.to][0]," at ", time.strftime(ISOTIMEFORMAT)
                 self.save_chat(self.to,line)
             else:
                 printl("发送消息失败")
@@ -302,7 +314,11 @@ class CLI(cmd.Cmd):
     def do_status(self,i):
         '''用法: status [i]\n改变状态:\033[34m0 隐身\033[36m1 离开\033[35m 2 离线\033[31m 3 忙碌\033[32m 4 在线.\033[0m'''
         if i:
-            self.prompt = self.color(self.sta,i) + ">"
+            if self.to:
+                tmpstr = self.prompt.split()
+                self.prompt = self.color(tmpstr[0][5:-4],i) + " [to] " + tmpstr[2]
+                return
+            self.prompt = self.color(self.prompt[5:-5],i) + ">"
             i = int(i)
             self.phone.set_presence(status.keys()[i])
         else:
@@ -324,11 +340,11 @@ class CLI(cmd.Cmd):
             return
         self.to = to
         nickname = self.get_nickname(self.to)
-        self.prompt = self.sta +" [to] "+nickname+">"
+        self.prompt = self.prompt[:-1] + " [to] " + nickname + ">"
         if len(cmd)>1:
             if self.phone.send_msg(toUTF8(cmd[1]),self.to):
                 self.save_chat(self.to,cmd[1])
-                print u'send message to ', nickname
+                print u'send message to ', nickname," at ", time.strftime(ISOTIMEFORMAT)
             else:
                 printl("发送消息失败")
 
@@ -509,7 +525,8 @@ class CLI(cmd.Cmd):
     def do_history(self,line):
         '''usage:history
         show the chat history information'''
-        file = open("chat_history.dat","r")
+        chat_history_file = os.path.join(config_folder,"chat_history.dat")
+        file = open(chat_history_file,"r")
         records = file.readlines()
         for record in records:
             temp = record.split()
@@ -548,10 +565,17 @@ class CLI(cmd.Cmd):
                     if the_sip == sip:
                         print nickname," to ",self.nickname," ",time,text
 
+    def do_log(self,line):
+        command_log_file = os.path.join(config_folder,"command.log")
+        file = open(command_log_file,"r")
+        records = file.readlines()
+        for record in records:
+            print record
+
     def do_quit(self,line):
         '''quit\nquit the current session'''
         self.to=""
-        self.prompt=self.sta+">"
+        self.prompt=self.prompt.split()[0]+">"
         pass
 
     def do_exit(self,line):
@@ -629,7 +653,11 @@ class fetion_input(Thread):
         #        pass
 
         #    #self.cmd(raw_input(self.hint))
-        CLI(self.phone).cmdloop()
+        try:
+            CLI(self.phone).cmdloop()
+        except KeyboardInterrupt:
+            self.phone.logout()
+            sys.exit(0)
         printl("退出输入状态")
 
     def cmd(self,arg):
@@ -905,7 +933,19 @@ def getpass(msg):
     sys.stdout.write('\n')
     return passwd
     
-
+def config():
+    if not os.path.isdir(config_folder):
+        os.mkdir(config_folder)
+    if not os.path.exists(config_file):
+        file = open(config_file,'w')
+        content = "#该文件由pyfetion生成，请勿随意修改\n#tel=12345678910\n#password=123456"
+        file.write(content)
+        file.close()
+        if not os.path.exists(config_file):
+            print u'创建文件失败'
+        else:
+            print u'创建文件成功'
+    
 def login():
     '''登录设置'''
     if len(sys.argv) > 3:
@@ -917,8 +957,29 @@ def login():
         if len(sys.argv) == 2:
             mobile_no = sys.argv[1]
         elif len(sys.argv) == 1:
-            mobile_no = raw_input(toEcho("手机号:"))
+            try:
+                confile = open(config_file,'r')
+                lines = confile.readlines()
+                for line in lines:
+                    if line.startswith("#"):
+                        continue
+                    if line.startswith("tel"):
+                        mobile_no = line.split("=")[1][:-1]
+                    elif line.startswith("password"):
+                        passwd = line.split("=")[1]
+                phone = PyFetion(mobile_no,passwd,"TCP",debug="FILE")
+                return phone
+            except:
+                mobile_no = raw_input(toEcho("手机号:"))
         passwd = getpass(toEcho("口  令:"))
+        save = raw_input(toEcho("是否保存手机号和密码以便下次自动登录(y/n)?"))
+        if save == 'y':
+            confile = open(config_file,'w')
+            content = "#该文件由pyfetion生成，请勿随意修改\n"
+            content = content +  "tel=" + mobile_no
+            content = content + "\npassword=" + passwd
+            confile.write(content)
+            confile.close()
     phone = PyFetion(mobile_no,passwd,"TCP",debug="FILE")
     return phone
 
@@ -972,5 +1033,6 @@ def main(phone):
     #time.strftime(time_format,time.gmtime())
     
 if __name__ == "__main__":
+    config()
     phone = login()
     sys.exit(main(phone))
