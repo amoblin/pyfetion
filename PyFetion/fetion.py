@@ -66,30 +66,32 @@ class fetion_recv(Thread):
 
     def show_status(self,sip,status):
         try:
+            os.system('play resources/online.wav')
             import pynotify
-            outstr = self.phone.contactlist[sip][0]+'['+ str(self.phone.get_order(sip)) + ']'
+            outstr = self.phone.contactlist[sip][0]+'['+ str(self.get_order(sip)) + ']'
             pynotify.init("Some Application or Title")
-            self.notification = pynotify.Notification(outstr, status, "dialog-warning")
+            self.notification = pynotify.Notification(outstr, status,"file:///home/laputa/Projects/pytool/PyFetion/resources/fetion.png")
             self.notification.set_urgency(pynotify.URGENCY_NORMAL)
             self.notification.set_timeout(1)
             self.notification.show()
         except :
-            #os.popen('play message.ogg')
-            print u"\n",self.phone.contactlist[sip][0],"[",self.phone.get_order(sip),"]现在的状态：",status
+            os.system('play resources/online.wav')
+            print u"\n",self.phone.contactlist[sip][0],"[",self.get_order(sip),"]现在的状态：",status
 
     def show_message(self,e):
         s = {"PC":"电脑","PHONE":"手机"}
         try:
+            os.system('play resources/newmessage.wav')
             import pynotify
-            outstr = self.phone.contactlist[e[1]][0] + '[' + str(self.phone.get_order(e[1])) + ']'
+            outstr = self.phone.contactlist[e[1]][0] + '[' + str(self.get_order(e[1])) + ']'
             pynotify.init("Some Application or Title")
-            self.notification = pynotify.Notification(outstr, e[2], "dialog-warning")
+            self.notification = pynotify.Notification(outstr, e[2],"file:///home/laputa/Projects/pytool/PyFetion/resources/fetion.png")
             self.notification.set_urgency(pynotify.URGENCY_NORMAL)
             self.notification.set_timeout(1)
             self.notification.show()
         except:
-            os.system('play message.ogg')
-            print self.phone.contactlist[e[1]][0],'[',self.phone.get_order(e[1]),']@',s[e[3]],"说：",e[2]
+            os.system('play resources/newmessage.wav')
+            print self.phone.contactlist[e[1]][0],'[',self.get_order(e[1]),']@',s[e[3]],"说：",e[2]
         
     def parse_cmd(self,to,line):
         flag = "以上信息由pyfetoin自动回复。更多指令请发送'\\help'。更多关于pyfetion的信息请访问http://code.google.com/p/pytool/"
@@ -142,6 +144,23 @@ class fetion_recv(Thread):
         file.write(record)
         file.close()
 
+    def get_order(self,sip):
+        '''get order number from sip'''
+
+        c = copy(self.phone.contactlist)
+        num = len(c.items())
+        for i in range(num):
+            if sip == c.keys()[i]:
+                return i
+        return None
+        #i=0
+        #for uri in self.contactlist.keys():
+        #    print uri
+        #    if sip == uri:
+        #        return i
+        #    else:
+        #        i = i+1
+        #return None
 class fetion_alive(Thread):
     '''keep alive'''
     def __init__(self,phone):
@@ -206,6 +225,11 @@ class CLI(cmd.Cmd):
         info = self.phone.get_personal_info()
         print u"昵称：",info[0]
         print u"状态：",info[1]
+        print u"手机号：",info[2]
+        print u"真实姓名：",info[3]
+        print u"飞信号：",info[4]
+        #print u"性别：",info[5]
+        #print u"电子邮箱：",info[6]
 
     def get_info(self,uri):
         c = copy(self.phone.contactlist)
@@ -216,7 +240,7 @@ class CLI(cmd.Cmd):
         return response
 
     def do_la(self,line):
-        '''用法:ls\n显示所有好友列表.
+        '''用法:ls\n按组显示所有好友列表.
             \033[34m短信在线\t\033[35m离线
             \033[36m离开\t\033[31m忙碌\t\033[32m在线\033[0m'''
         if not self.phone.contactlist:
@@ -234,28 +258,14 @@ class CLI(cmd.Cmd):
         for i in c:
             if c[i][0] == '':
                 c[i][0] = i[4:4+9]
-        printl(status[FetionOnline])
-        for i in range(num):
-            if c[c.keys()[i]][2] != FetionHidden and c[c.keys()[i]][2] != FetionOffline:
-                outstr = "[" + str(i) + "]" + c[c.keys()[i]][0]
-                print self.color(outstr,status[c[c.keys()[i]][2]]),"\t",
-
-        printl("\n"+status[FetionHidden])
-        j = 0
-        for i in range(num):
-            if c[c.keys()[i]][2] == FetionHidden:
-                j = j + 1
-                if j%6==1:
-                    print ""
-                outstr = "[" + str(i) + "]" + c[c.keys()[i]][0]
-                print self.color(outstr,status[c[c.keys()[i]][2]]),"\t",
-
-        printl("\n"+ status[FetionOffline])
-        for i in range(num):
-            if c[c.keys()[i]][2] == FetionOffline:
-                outstr = "[" + str(i) + "]" + c[c.keys()[i]][0]
-                print self.color(outstr,status[c[c.keys()[i]][2]]),"\t",
-        print ""
+        #printl(status[FetionOnline])
+        for group in self.phone.grouplist:
+            print group[1]+":"
+            for i in range(num):
+                if c[c.keys()[i]][4] == group[0]:
+                    outstr = "[" + str(i) + "]" + c[c.keys()[i]][0]
+                    print self.color(outstr,status[c[c.keys()[i]][2]]),"\t",
+            print ""
 
     def do_ls(self,line):
         '''用法: ls\n 显示在线好友列表
@@ -286,6 +296,36 @@ class CLI(cmd.Cmd):
                 outstr = "[" + str(i) + "]" + c[c.keys()[i]][0]
                 print self.color(outstr,status[c[c.keys()[i]][2]]),"\t",
         print ""
+
+    def do_lg(self,line):
+        if not line:
+            for group in self.phone.grouplist:
+                print "["+group[0]+"]"+group[1]+"\t",
+            print ""
+            return
+        #有参数，显示特定分组
+        c = copy(self.phone.contactlist)
+        num = len(c.items())
+        for group in self.phone.grouplist:
+            if line == group[0]:
+                print group[1]+":"
+                for i in range(num):
+                    if c[c.keys()[i]][4] == line:
+                        outstr = "[" + str(i) + "]" + c[c.keys()[i]][0]
+                        print self.color(outstr,status[c[c.keys()[i]][2]]),"\t",
+                print ""
+                return
+        print u"不存在此分组"
+
+    def do_rename(self,line):
+        if not line:
+            print u'用法：rename [昵称]\n修改昵称'
+            return
+        print u'即将实现此功能'
+        #if self.phone.set_presence(line):
+        #    print "修改成功"
+        #else:
+        #    print "修改失败"
 
     def do_ll(self,line):
         '''用法: ll\n列出好友详细信息:序号，昵称，手机号，状态.
