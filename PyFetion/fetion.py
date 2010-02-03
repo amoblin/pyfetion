@@ -216,7 +216,7 @@ class CLI(cmd.Cmd):
             if to == None:
                 return
             info = self.get_info(to)
-            print u"序号：",self.phone.get_order(to)
+            print u"序号：",self.get_order(to)
             print u"昵称：",info[0]
             print u"飞信号：",self.get_fetion_number(to)
             print u"手机号：",info[1]
@@ -260,7 +260,7 @@ class CLI(cmd.Cmd):
                 c[i][0] = i[4:4+9]
         #printl(status[FetionOnline])
         for group in self.phone.grouplist:
-            print group[1]+":"
+            print "\033[1m["+group[0]+"]"+group[1]+"\033[0m:"
             for i in range(num):
                 if c[c.keys()[i]][4] == group[0]:
                     outstr = "[" + str(i) + "]" + c[c.keys()[i]][0]
@@ -274,7 +274,7 @@ class CLI(cmd.Cmd):
                 to=self.get_sip(line)
                 if to == None:
                     return
-                print self.phone.get_order(to),self.get_nickname(to)
+                print self.get_order(to),self.get_nickname(to)
                 return
         if not self.phone.contactlist:
             printl("没有好友")
@@ -300,7 +300,7 @@ class CLI(cmd.Cmd):
     def do_lg(self,line):
         if not line:
             for group in self.phone.grouplist:
-                print "["+group[0]+"]"+group[1]+"\t",
+                print "["+group[0]+"]\033[4m"+group[1]+"\033[0m\t",
             print ""
             return
         #有参数，显示特定分组
@@ -311,6 +311,14 @@ class CLI(cmd.Cmd):
                 print group[1]+":"
                 for i in range(num):
                     if c[c.keys()[i]][4] == line:
+                        outstr = "[" + str(i) + "]" + c[c.keys()[i]][0]
+                        print self.color(outstr,status[c[c.keys()[i]][2]]),"\t",
+                print ""
+                return
+            if line == group[1]:
+                print "["+group[0]+"]\033[4m"+group[1]+"\033[0m:"
+                for i in range(num):
+                    if c[c.keys()[i]][4] == group[0]:
                         outstr = "[" + str(i) + "]" + c[c.keys()[i]][0]
                         print self.color(outstr,status[c[c.keys()[i]][2]]),"\t",
                 print ""
@@ -328,7 +336,7 @@ class CLI(cmd.Cmd):
         #    print "修改失败"
 
     def do_ll(self,line):
-        '''用法: ll\n列出好友详细信息:序号，昵称，手机号，状态.
+        '''用法: ll\n列出好友详细信息:序号，昵称，手机号，状态，分组.
             \033[34m短信在线\t\033[35m离线
             \033[36m离开\t\033[31m忙碌\t\033[32m在线\033[0m'''
         if not self.phone.contactlist:
@@ -349,6 +357,9 @@ class CLI(cmd.Cmd):
         for i in range(num):
             uri = c.keys()[i]
             outstr = str(i)+"\t" + c[uri][0]+"\t" + c[uri][1]+"\t" + status[c[uri][2]]
+            for group in self.phone.grouplist:
+                if group[0] == c[uri][4]:
+                    outstr = outstr + "\t\033[4m" + group[1] + "\033[0m"
             print self.color(outstr,status[c[uri][2]])
 
     def do_status(self,i):
@@ -389,7 +400,8 @@ class CLI(cmd.Cmd):
                 printl("发送消息失败")
 
     def save_chat(self,sip,text):
-        file = open("chat_history.dat","a")
+        chat_history_file = os.path.join(config_folder,"chat_history.dat")
+        file = open(chat_history_file,"a")
         record ="out!" + self.get_fetion_number(sip) + " " + time.strftime(ISOTIMEFORMAT) + " " + text + "\n"
         file.write(record)
         file.close()
@@ -430,9 +442,10 @@ class CLI(cmd.Cmd):
                     ret = self.phone.start_chat(uri)
                     if ret:
                         if ret == c[uri][2]:
-                            print self.color(str(i)+c[uri][0],status[c[uri][2]]),"\t",
+                            print self.color("["+str(i)+"]"+c[uri][0],status[c[uri][2]]),"\t",
                         #elif ret == FetionOnline:
                             #print c[c.keys()[i]][0],u"不在线"
+            print ""
             return
         cmd = line.split()
         to = self.get_sip(cmd[0])
@@ -494,6 +507,15 @@ class CLI(cmd.Cmd):
 
     def do_get(self,line):
         self.phone.get_offline_msg()
+
+    def get_order(self,sip):
+        '''get order number from sip'''
+        c = copy(self.phone.contactlist)
+        num = len(c.items())
+        for i in range(num):
+            if sip == c.keys()[i]:
+                return i
+        return None
 
     def do_update(self,line):
         '''用法：update [状态]
@@ -565,8 +587,11 @@ class CLI(cmd.Cmd):
     def do_history(self,line):
         '''usage:history
         show the chat history information'''
-        chat_history_file = os.path.join(config_folder,"chat_history.dat")
-        file = open(chat_history_file,"r")
+        try:
+            chat_history_file = os.path.join(config_folder,"chat_history.dat")
+            file = open(chat_history_file,"r")
+        except:
+            return
         records = file.readlines()
         for record in records:
             temp = record.split()
@@ -632,8 +657,9 @@ class CLI(cmd.Cmd):
 
         help[?]           显示本帮助信息
         ls                列出在线好友列表
-        la                列出所有好友列表
+        la                按组列出所有好友列表
         ll                列出序号，备注，昵称，所在组，状态
+        lg                列出好友分组，带参数显示该分组的好友列表
         status[st]        改变飞信状态 参数[0隐身 1离开 2忙碌 3在线]
                           参数为空显示自己的状态
         msg[m]            发送消息 参数为序号或手机号 使用quit退出

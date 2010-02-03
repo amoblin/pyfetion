@@ -1029,7 +1029,6 @@ class PyFetion(SIPC):
            {uri:[name,mobile-no,status,type,group-id]}
         """
         buddy_list = ''
-        grout_list = ''
         allow_list = ''
         chat_friends = ''
         need_info = []
@@ -1047,7 +1046,7 @@ class PyFetion(SIPC):
             return True
         try:
             buddy_list = re.findall('uri="(.+?)" user-id="\d+" local-name="(.*?)" buddy-lists="(.*?)"',d)
-            group_list = re.findall('id="(\d+)" name="(.*?)"',d)
+            self.grouplist = re.findall('id="(\d+)" name="(.*?)"',d)
         except:
             return False
 
