@@ -22,6 +22,7 @@ config_file = os.path.join(config_folder,'config.txt')
 mobile_no = ""
 
 status = {FetionHidden:"短信在线",FetionOnline:"在线",FetionBusy:"忙碌",FetionAway:"离开",FetionOffline:"离线"}
+colors = {}
 
 class fetion_recv(Thread):
     '''receive message'''
@@ -67,7 +68,7 @@ class fetion_recv(Thread):
 
     def show_status(self,sip,status):
         try:
-            os.system('play resources/online.wav')
+            #os.system('play resources/online.wav')
             import pynotify
             outstr = self.phone.contactlist[sip][0]+'['+ str(self.get_order(sip)) + ']'
             pynotify.init("Some Application or Title")
@@ -76,13 +77,13 @@ class fetion_recv(Thread):
             self.notification.set_timeout(1)
             self.notification.show()
         except :
-            os.system('play resources/online.wav')
+            #os.system('play resources/online.wav')
             print u"\n",self.phone.contactlist[sip][0],"[",self.get_order(sip),"]现在的状态：",status
 
     def show_message(self,e):
         s = {"PC":"电脑","PHONE":"手机"}
         try:
-            os.system('play resources/newmessage.wav')
+            #os.system('play resources/newmessage.wav')
             import pynotify
             outstr = self.phone.contactlist[e[1]][0] + '[' + str(self.get_order(e[1])) + ']'
             pynotify.init("Some Application or Title")
@@ -91,7 +92,7 @@ class fetion_recv(Thread):
             self.notification.set_timeout(1)
             self.notification.show()
         except:
-            os.system('play resources/newmessage.wav')
+            #os.system('play resources/newmessage.wav')
             print self.phone.contactlist[e[1]][0],'[',self.get_order(e[1]),']@',s[e[3]],"说：",e[2]
         
     def parse_cmd(self,to,line):
@@ -200,7 +201,7 @@ class CLI(cmd.Cmd):
             print line, u' 不支持的命令!'
 
     def do_test(self,line):
-        os.system('play resources/online.wav')
+        #os.system('play resources/online.wav')
         self.prompt="jfaskdflajfklafld>"
         return
 
@@ -387,7 +388,7 @@ class CLI(cmd.Cmd):
             if len(cmd)>1:
                 self.phone.send_sms(cmd[1])
             else:
-                self.prompt = self.prompt[:-1] + " [to] self>"
+                self.prompt = self.color(self.nickname,status[self.phone.presence]) + " [to] self>"
             return
 
         to = self.get_sip(num)
@@ -395,7 +396,7 @@ class CLI(cmd.Cmd):
             return
         self.to = to
         nickname = self.get_nickname(self.to)
-        self.prompt = self.prompt[:-1] + " [to] " + nickname + ">"
+        self.prompt = self.color(self.nickname,status[self.phone.presence]) + " [to] " + nickname + ">"
         if len(cmd)>1:
             if self.phone.send_msg(toUTF8(cmd[1]),self.to):
                 self.save_chat(self.to,cmd[1])
@@ -426,7 +427,7 @@ class CLI(cmd.Cmd):
             if len(cmd)>1:
                 self.phone.send_sms(cmd[1])
             else:
-                self.prompt = self.prompt[:-1] + " [to] self>"
+                self.prompt = self.color(self.nickname,status[self.phone.presence]) + " [to] self>"
             return
 
         to=self.get_sip(num)
@@ -1088,7 +1089,9 @@ def config():
         os.mkdir(config_folder)
     if not os.path.exists(config_file):
         file = open(config_file,'w')
-        content = "#该文件由pyfetion生成，请勿随意修改\n#tel=12345678910\n#password=123456"
+        content = "#该文件由pyfetion生成，请勿随意修改\n#tel=12345678910\n#password=123456\n"
+        content +="隐身=蓝色\n离开=青蓝色\n离线=紫红色\n忙碌=红色\n在线=绿色\n"
+        content +="颜色和linux终端码的对应参照http://www.chinaunix.net/jh/6/54256.html"
         file.write(content)
         file.close()
         if not os.path.exists(config_file):
