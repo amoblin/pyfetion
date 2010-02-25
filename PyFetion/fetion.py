@@ -19,6 +19,7 @@ ISOTIMEFORMAT='%Y-%m-%d %H:%M:%S'
 userhome = os.path.expanduser('~')
 config_folder = os.path.join(userhome,'.pyfetion')
 config_file = os.path.join(config_folder,'config.txt')
+mobile_no = ""
 
 status = {FetionHidden:"短信在线",FetionOnline:"在线",FetionBusy:"忙碌",FetionAway:"离开",FetionOffline:"离线"}
 
@@ -153,14 +154,7 @@ class fetion_recv(Thread):
             if sip == c.keys()[i]:
                 return i
         return None
-        #i=0
-        #for uri in self.contactlist.keys():
-        #    print uri
-        #    if sip == uri:
-        #        return i
-        #    else:
-        #        i = i+1
-        #return None
+
 class fetion_alive(Thread):
     '''keep alive'''
     def __init__(self,phone):
@@ -206,7 +200,9 @@ class CLI(cmd.Cmd):
             print line, u' 不支持的命令!'
 
     def do_test(self,line):
-        pass
+        os.system('play resources/online.wav')
+        self.prompt="jfaskdflajfklafld>"
+        return
 
     def do_info(self,line):
         '''用法：info
@@ -386,6 +382,14 @@ class CLI(cmd.Cmd):
         cmd = line.split()
         num = cmd[0]
 
+        if num==mobile_no:
+            self.to = mobile_no
+            if len(cmd)>1:
+                self.phone.send_sms(cmd[1])
+            else:
+                self.prompt = self.prompt[:-1] + " [to] self>"
+            return
+
         to = self.get_sip(num)
         if to == None:
             return
@@ -416,6 +420,15 @@ class CLI(cmd.Cmd):
         if len(cmd) ==1:
             num = cmd[0]
         num = cmd[0]
+
+        if num==mobile_no:
+            self.to = mobile_no
+            if len(cmd)>1:
+                self.phone.send_sms(cmd[1])
+            else:
+                self.prompt = self.prompt[:-1] + " [to] self>"
+            return
+
         to=self.get_sip(num)
         if to == None:
             return
@@ -479,6 +492,37 @@ class CLI(cmd.Cmd):
         else:
             printl("命令格式:add[a] 手机号或飞信号")
 
+    def do_gadd(self,line):
+        '''Usage:gadd [group id or group name] [buddy id or buddy name]
+            add buddy to group'''
+        if not line:
+            return
+        cmd = line.split()
+        if not groupself.get_group_id(cmd[0]):
+            if not self.tmp_group:
+                self.tmp_group = {}
+                #self.tmp_group[9999] = cmd[0]
+                print u'创建临时分组：'+cmd[0]
+                return
+            elif self.tmp_group[9999] != cmd[0]:
+                ans = raw_input('已存在临时分组'+self.tmp_group[9999]+"，要覆盖该分组吗(y/n)？")
+                if ans == 'y':
+                    self.tmp_group.clear()
+                    self.tmp_group[9999] = cmd[0]
+                    print u'创建临时分组：'+cmd[0]
+
+        if len(cmd)==1:
+            pass
+
+    def get_group_id(self,line):
+        for group in self.phone.grouplist:
+            if line == group[0]:
+                return line
+            if line == group[1]:
+                return group[0]
+
+            print u'不存在此分组'
+
     def do_del(self,line):
         '''delete buddy'''
         if not line:
@@ -529,6 +573,46 @@ class CLI(cmd.Cmd):
         #im = ImageGrab.grab()
         #name = time.strftime("%Y%m%d%H%M%S") + ".png"
         #im.save(name)
+
+    def do_gsms(self,line):
+        if not line:
+            return
+        cmd = line.split()
+        c = copy(self.phone.contactlist)
+        num = len(c.items())
+        for group in self.phone.grouplist:
+            if cmd[0] == group[0]:
+                print group[1]+":"
+                if len(cmd)==1:
+                    for i in range(num):
+                        if c[c.keys()[i]][4] == group[0]:
+                            outstr = "[" + str(i) + "]" + c[c.keys()[i]][0]
+                            print self.color(outstr,status[c[c.keys()[i]][2]]),"\t",
+                    print ""
+                elif cmd[1]!="":
+                    for i in range(num):
+                        if c[c.keys()[i]][4] == group[0]:
+                            self.phone.send_sms(toUTF8(line[1]),c.keys()[i])
+                            outstr = "[" + str(i) + "]" + c[c.keys()[i]][0]
+                            print self.color(outstr,status[c[c.keys()[i]][2]]),"sended."
+                return
+            if cmd[0] == group[1]:
+                print "["+group[0]+"]\033[4m"+group[1]+"\033[0m:"
+                if len(cmd)==1:
+                    for i in range(num):
+                        if c[c.keys()[i]][4] == group[0]:
+                            outstr = "[" + str(i) + "]" + c[c.keys()[i]][0]
+                            print self.color(outstr,status[c[c.keys()[i]][2]]),"\t",
+                    print ""
+                elif cmd[1]!="":
+                    for i in range(num):
+                        if c[c.keys()[i]][4] == group[0]:
+                            self.phone.send_sms(toUTF8(line[1]),c.keys()[i])
+                            outstr = "[" + str(i) + "]" + c[c.keys()[i]][0]
+                            print self.color(outstr,status[c[c.keys()[i]][2]]),"sended."
+                return
+        print u"不存在此分组"
+
 
     def do_cls(self,line):
         pass
@@ -1014,6 +1098,7 @@ def config():
     
 def login():
     '''登录设置'''
+    global mobile_no
     if len(sys.argv) > 3:
         print u'参数错误'
     elif len(sys.argv) == 3:
