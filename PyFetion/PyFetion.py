@@ -909,7 +909,8 @@ class PyFetion(SIPC):
         """add friend who should be mobile number or fetion number"""
         my_info = self.get_info()
         try:
-            nick_name = re.findall('nickname="(.*?)" ',my_info)[0]
+            #nick_name = re.findall('nickname="(.*?)" ',my_info)[0]
+            nick_name = my_info[0]
         except IndexError:
             nick_name = " "
 
