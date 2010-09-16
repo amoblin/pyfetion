@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #MIT License
-#   By : cocobear.cn@gmail.com
-#   Ver: 0.3
+#By : cocobear.cn@gmail.com
+#Ver:0.2
 
 import urllib
 import urllib2
@@ -22,6 +22,7 @@ from threading import RLock
 from threading import Thread
 from select import select
 from Queue import Queue
+from copy import copy
 
 
 FetionOnline = "400"
@@ -48,7 +49,7 @@ d_print = ''
 proxy_info = {'user' : '',
               'pass' : '',
               'host' : '218.249.83.87',
-              'port' : 8080
+              'port' : 8080 
               }
 """
 
@@ -74,11 +75,11 @@ class PyFetionSocketError(PyFetionException):
             args = e.args
             d_print(('args',),locals())
             try:
+                self.args = (e.errno,msg)
                 msg = socket.errorTab[e.errno]
+                self.code = e.errno
             except:
-                msg = ''
-            self.args = (e.errno,msg)
-            self.code = e.errno
+                msg = e
             self.msg  = msg
 
 class PyFetionAuthError(PyFetionException):
@@ -124,7 +125,7 @@ class SIPC():
                  }
         else:
             self.__tcp_init()
-
+     
     def init_ack(self,type):
         self._content = "%s 200 OK\r\n" % self.ver
         self._header = [('F',self.sid),
@@ -139,7 +140,7 @@ class SIPC():
                        ('Q','%s %s' % (self.Q,type)),
                       ]
 
-
+ 
     def recv(self,timeout=False):
         if self.login_type == "HTTP":
             time.sleep(10)
@@ -150,10 +151,10 @@ class SIPC():
                 infd,outfd,errfd = select([self.__sock,],[],[],timeout)
             else:
                 infd,outfd,errfd = select([self.__sock,],[],[])
-
+                
             if len(infd) != 0:
                 ret = self.__tcp_recv()
-
+                    
                 num = len(ret)
                 d_print(('num',),locals())
                 if num == 0:
@@ -163,7 +164,7 @@ class SIPC():
                 for r in ret:
                     self.queue.put(r)
                     d_print(('r',),locals())
-
+                    
                 if not self.queue.empty():
                     return self.queue.get()
 
@@ -181,10 +182,10 @@ class SIPC():
                 d_print(('cmd',),locals())
             except AttributeError,e:
                 pass
-
+                
             return cmd
         return self.code
-
+ 
     def get(self,cmd,arg,*extra):
         body = ''
         if extra:
@@ -206,12 +207,12 @@ class SIPC():
                 #If this step failed try to uncomment this lines
                 #del self._header[2]
                 #self._header.insert(2,('Q','2 R'))
-
+                
                 if FetionVer == "2008":
                     self._header.insert(3,('A','Digest algorithm="SHA1-sess",response="%s",cnonce="%s",salt="%s",ssic="%s"' % (response,cnonce,salt,self._ssic)))
                 elif FetionVer == "2006":
                     self._header.insert(3,('A','Digest response="%s",cnonce="%s"' % (response,cnonce)))
-            #If register successful 200 code get
+            #If register successful 200 code get 
             if arg == 3:
                 return self.code
 
@@ -221,7 +222,7 @@ class SIPC():
             self._header.append(('C','text/plain'))
             self._header.append(('K','SaveHistory'))
             self._header.append(('N',cmd))
-
+        
         if cmd == "SendMsg":
             self.init('M')
             self._header.append(('C','text/plain'))
@@ -295,7 +296,7 @@ class SIPC():
             for i in extra[0]:
                 body += '<contact uri="%s" type="3" />' % i
             body += '</contacts></subscription></args>'
-
+            
         if cmd == "StartChat":
             if arg == '':
                 self.init('S')
@@ -318,7 +319,7 @@ class SIPC():
             self.init('S')
             self._header.insert(3,('N',cmd))
             body = '<args><group-list version="1" attributes="name;identity" /></args>'
-
+            
 
 
         if cmd == "SSSetScheduleSms":
@@ -328,7 +329,7 @@ class SIPC():
         if cmd == "GetOfflineMessages":
             self.init('S')
             self._header.insert(3,('N',cmd))
-
+	    
         if cmd == "INFO":
             self.init('S')
             self._header.insert(3,('N',arg))
@@ -357,7 +358,7 @@ class SIPC():
 
 
 
-
+        
         #general SIPC info
         if len(body) != 0:
             self._header.append(('L',len(body)))
@@ -372,12 +373,12 @@ class SIPC():
 
     def ack(self):
         """ack message from server"""
-        content = self._content
+        content = self._content 
         d_print(('content',),locals())
         self.__tcp_send(content)
 
     def send(self):
-        content = self._content
+        content = self._content 
         response = ''
         if self._lock:
             d_print("acquire lock ")
@@ -439,7 +440,7 @@ class SIPC():
         if self._lock:
             self._lock.release()
             d_print("release lock")
-
+ 
 
         return response
 
@@ -484,7 +485,7 @@ class SIPC():
     def __tcp_recv(self):
         """read bs bytes first,if there's still more data, read left data.
            get length from header :
-           L: 1022
+           L: 1022 
         """
         total_data = []
         bs = 1024
@@ -499,7 +500,7 @@ class SIPC():
                     return total_data
                 else:
                     break
-
+                
 
             while re.search("L: (\d+)",data):
                 n = len(data)
@@ -555,7 +556,7 @@ class SIPC():
         #return ''.join(total_data)
 
     def __split(self,data):
-
+        
         c = []
         d = []
 
@@ -580,7 +581,7 @@ class SIPC():
             c.append(b[i+1][L[i]:])
 
 
-
+        
         d_print(('c',),locals())
         #remove last empty string
         if c[-1] == '':
@@ -598,7 +599,7 @@ class SIPC():
         return d
 
     def __get_salt(self):
-        return self._hash_passwd()[:8]
+        return self.__hash_passwd()[:8]
 
     def __get_cnonce(self):
         return md5(str(uuid1())).hexdigest().upper()
@@ -616,7 +617,7 @@ class SIPC():
     def __get_response_sha1(self,nonce,cnonce):
         #nonce = "3D8348924962579418512B8B3966294E"
         #cnonce= "9E169DCA9CBD85F1D1A89A893E00917E"
-        hash_passwd = self._hash_passwd()
+        hash_passwd = self.__hash_passwd()
         hash_passwd_str = binascii.unhexlify(hash_passwd[8:])
         key = sha1("%s:%s:%s" % (self.sid,self._domain,hash_passwd_str)).digest()
         h1  = md5("%s:%s:%s" % (key,nonce,cnonce)).hexdigest().upper()
@@ -624,11 +625,13 @@ class SIPC():
         response = md5("%s:%s:%s" % (h1,nonce,h2)).hexdigest().upper()
         return response
 
-    def _hash_passwd(self):
+    def __hash_passwd(self):
         #salt = '%s%s%s%s' % (chr(0x77), chr(0x7A), chr(0x6D), chr(0x03))
         salt = 'wzm\x03'
         src  = salt+sha1(self.passwd).digest()
         return "777A6D03"+sha1(src).hexdigest().upper()
+
+
 
 def http_send(url,body='',exheaders='',login=False):
     global proxy_info
@@ -647,7 +650,7 @@ def http_send(url,body='',exheaders='',login=False):
 
     urllib2.install_opener(opener)
     request = urllib2.Request(url,headers=headers,data=body)
-    #add retry for GAE.
+    #add retry for GAE. 
     #PyFetion will get 405 code sometimes, we should re-send the request.
     retry = 5
     while retry:
@@ -687,7 +690,7 @@ class on_cmd_I(Thread,SIPC):
         Thread.__init__(self)
 
     def run(self):
-
+    
         running = True
         try:
             self.from_uri = re.findall('F: (.*)',self.response)[0]
@@ -720,7 +723,7 @@ class on_cmd_I(Thread,SIPC):
                 self.fetion.session.pop(self.from_uri)
                 return
             self.deal_msg(response)
-
+            
             #self._bye()
 
 
@@ -752,7 +755,7 @@ class on_cmd_I(Thread,SIPC):
         msg = msg.replace('<','&lt;')
         self.get("SendMsg",'',msg)
         self.send()
-
+        
     def _bye(self):
         """say bye to this session"""
         self.get("BYE",'')
@@ -769,7 +772,7 @@ class PyFetion(SIPC):
     _sipc_proxy  = ''
     _domain = ''
     _http_tunnel = ''
-
+    
     mobile_no = ''
     passwd = ''
     queue = Queue()
@@ -779,13 +782,14 @@ class PyFetion(SIPC):
     presence = ''
     debug = False
     contactlist = {}
+    grouplist = {}
     session = {}
 
     def __init__(self,mobile_no,passwd,login_type="TCP",debug=False):
         self.mobile_no = mobile_no
         self.passwd = passwd
         self.login_type = login_type
-
+         
 
         if debug == True:
             logging.basicConfig(level=logging.DEBUG,format='%(message)s')
@@ -801,9 +805,12 @@ class PyFetion(SIPC):
         #replace global function with self method
         d_print = self.__print
 
+        self.__sipc_url   = "https://uid.fetion.com.cn/ssiportal/SSIAppSignIn.aspx"
+        self._sipc_proxy = "221.176.31.45:8080"
+        self._http_tunnel= "http://221.176.31.45/ht/sd.aspx"
         #uncomment this line for getting configuration from server everytime
         #It's very slow sometimes, so default use fixed configuration
-        self.__get_system_config()
+        #self.__set_system_config()
 
 
     def login(self,presence=FetionOnline):
@@ -834,7 +841,7 @@ class PyFetion(SIPC):
 
 
     def logout(self):
-
+        
         self.get("DEAD",'')
         self.send()
         self.receving = False
@@ -891,7 +898,7 @@ class PyFetion(SIPC):
 
         #self.get("PGSetPresence",presence)
         #response = self.send()
-
+        
     def get_offline_msg(self):
         """get offline message from server"""
         self.get("GetOfflineMessages",'')
@@ -902,7 +909,8 @@ class PyFetion(SIPC):
         """add friend who should be mobile number or fetion number"""
         my_info = self.get_info()
         try:
-            nick_name = re.findall('nickname="(.*?)" ',my_info)[0]
+            #nick_name = re.findall('nickname="(.*?)" ',my_info)[0]
+            nick_name = my_info[0]
         except IndexError:
             nick_name = " "
 
@@ -923,7 +931,7 @@ class PyFetion(SIPC):
         return False
 
     def delete(self,who):
-
+        
         if who.isdigit() and len(who) == 11:
             who = "tel:" + who
         else:
@@ -953,6 +961,22 @@ class PyFetion(SIPC):
         """get detail information of me"""
         self.get("INFO","GetPersonalInfo")
         response = self.send()
+        nickname = re.findall('nickname="(.+?)"',response)[0]
+        impresa = re.findall('impresa="(.+?)"',response)[0]
+        #mobile = re.findall('mobile-no="(^1[35]\d{9})"',response)[0]
+        mobile = re.findall('mobile-no="(.+?)"',response)[0]
+        name = re.findall(' name="(.+?)"',response)[0]
+        gender = re.findall('gender="([01])"',response)[0]
+        fetion_number = re.findall('user-id="(\d{9})"',response)[0]
+        #email = re.findall('personal-email="(.+?)"',response)[0]
+        response = []
+        response.append(nickname)
+        response.append(impresa)
+        response.append(mobile)
+        response.append(name)
+        response.append(fetion_number)
+        #response.append(gender)
+        #response.append(email)
         return response
 
     def get_info(self,who=None):
@@ -964,13 +988,14 @@ class PyFetion(SIPC):
             return self.get_personal_info()
 
         if type(who) is not list:
-            alluri.append(who)
+            alluri.append(who) 
         else:
             alluri = who
-
+            
         self.get("INFO","GetContactsInfo",alluri)
         response = self.send()
         return response
+
 
 
     def set_info(self,info):
@@ -998,11 +1023,11 @@ class PyFetion(SIPC):
                 self.contactlist[uri][1] = mobile_no
 
 
-
+    
     def get_contactlist(self):
         """get contact list
            contactlist is a dict:
-           {uri:[name,mobile-no,status,type]}
+           {uri:[name,mobile-no,status,type,group-id]}
         """
         buddy_list = ''
         allow_list = ''
@@ -1015,9 +1040,14 @@ class PyFetion(SIPC):
         if code != 200:
             return False
 
-        d = re.findall('<buddy-lists>(.*?)<allow-list>',response)[0]
         try:
-            buddy_list = re.findall('uri="(.+?)" user-id="\d+" local-name="(.*?)"',d)
+            d = re.findall('<buddy-lists>(.*?)<allow-list>',response)[0]
+        #No buddy here
+        except:
+            return True
+        try:
+            buddy_list = re.findall('uri="(.+?)" user-id="\d+" local-name="(.*?)" buddy-lists="(.*?)"',d)
+            self.grouplist = re.findall('id="(\d+)" name="(.*?)"',d)
         except:
             return False
 
@@ -1027,41 +1057,43 @@ class PyFetion(SIPC):
         except:
             pass
 
-
+        
         for uri in chat_friends:
             if uri not in self.contactlist:
-                l = ['']*4
+                l = ['']*5
                 need_info.append(uri)
-                self.contactlist[uri] = l
-                self.contactlist[uri][0] = ''
-                self.contactlist[uri][2] = FetionHidden
-                self.contactlist[uri][3] = 'A'
-
+                self.contactlist[uri] = l       
+                self.contactlist[uri][0] = ''      
+                self.contactlist[uri][2] = FetionHidden       
+                self.contactlist[uri][3] = 'A'      
 
 
         #buddy_list [(uri,local_name),...]
         for p in buddy_list:
-            l = ['']*4
+            l = ['']*5
 
             #set uri
             self.contactlist[p[0]] = l
             #set local-name
-            self.contactlist[p[0]][0] = p[1]
+            self.contactlist[p[0]][0] = p[1]       
             #set default status
-            self.contactlist[p[0]][2] = FetionHidden
-            #self.contactlist[p[0]][2] = FetionOffline
+            self.contactlist[p[0]][2] = FetionHidden       
+            #self.contactlist[p[0]][2] = FetionOffline       
+
+            #set group id here!
+            self.contactlist[p[0]][4] = p[2]
 
             if p[0].startswith("tel"):
-                self.contactlist[p[0]][3] = 'T'
-                self.contactlist[p[0]][2] = FetionHidden
+                self.contactlist[p[0]][3] = 'T'      
+                self.contactlist[p[0]][2] = FetionHidden       
                 #set mobile_no
                 self.contactlist[p[0]][1] = p[0][4:]
                 #if no local-name use mobile-no as name
                 if p[1] == '':
                     self.contactlist[p[0]][0] = self.contactlist[p[0]][1]
             else:
-                self.contactlist[p[0]][3] = 'B'
-                if self.contactlist[p[0]][0] == '' or self.contactlist[p[0]][1] == '':
+                self.contactlist[p[0]][3] = 'B'      
+                if self.contactlist[p[0]][0] == '':
                     need_info.append(p[0])
         """
         try:
@@ -1075,10 +1107,10 @@ class PyFetion(SIPC):
             if uri not in self.contactlist:
                 l = ['']*4
                 need_info.append(uri)
-                self.contactlist[uri] = l
-                self.contactlist[uri][0] = ''
-                self.contactlist[uri][2] = FetionHidden
-                self.contactlist[uri][3] = 'A'
+                self.contactlist[uri] = l       
+                self.contactlist[uri][0] = ''      
+                self.contactlist[uri][2] = FetionHidden       
+                self.contactlist[uri][3] = 'A'      
 
         """
         ret = self.get_info(need_info)
@@ -1208,11 +1240,11 @@ class PyFetion(SIPC):
                 except IndexError:
                     d_print("Didn't find type")
                     d_print(('response',),locals())
-
+                    
 
                 if type == "ServiceResult":
                     self.set_info(response)
-
+                      
                 if type == "deregistered" or type=="disconnect":
                     self.receving = False
                     yield [type]
@@ -1231,7 +1263,7 @@ class PyFetion(SIPC):
                             self.contactlist[e[0]][2] = e[2]
                         else:
                             self.contactlist[e[0]][2] = e[1]
-
+                            
 
                     yield [type,event]
                 if type == "UpdateBuddy" or type == "UpdateMobileBuddy":
@@ -1242,8 +1274,8 @@ class PyFetion(SIPC):
                         ret = self.get_info(uri)
                         self.set_info(ret)
                     else:
-                        self.contactlist[uri][3] = 'T'
-                        self.contactlist[uri][2] = FetionHidden
+                        self.contactlist[uri][3] = 'T'      
+                        self.contactlist[uri][2] = FetionHidden       
                         self.contactlist[uri][1] = uri[4:]
                         self.contactlist[uri][0] = uri[4:]
 
@@ -1266,7 +1298,7 @@ class PyFetion(SIPC):
                     type = "PC"
                 except:
                     type = "PHONE"
-                #ack this message
+                #ack this message 
                 try:
                     Q = re.findall('Q: (-?\d+) M',response)[0]
                     I = re.findall('I: (-?\d+)',response)[0]
@@ -1283,7 +1315,7 @@ class PyFetion(SIPC):
                     pass
                 args = [self.sid,self._domain,self.login_type,self._http_tunnel,self._ssic,self._sipc_proxy,self.presence,None]
 
-
+                
                 t = on_cmd_I(self,response,args)
 
                 t.setDaemon(True)
@@ -1319,28 +1351,19 @@ class PyFetion(SIPC):
         body = FetionConfigXML % self.mobile_no
         d_print(('url','body'),locals())
         config_data = http_send(url,body).read()
+         
 
-        try:
-            sipc_url    = re.search("<ssi-app-sign-in-v2>(.*)</ssi-app-sign-in-v2>",config_data).group(1)
-            sipc_proxy  = re.search("<sipc-proxy>(.*)</sipc-proxy>",config_data).group(1)
-            http_tunnel = re.search("<http-tunnel>(.*)</http-tunnel>",config_data).group(1)
-        except:
-            sipc_url    = "https://uid.fetion.com.cn/ssiportal/SSIAppSignInV2.aspx"
-            sipc_proxy  = "221.176.31.45:8080"
-            http_tunnel = "http://221.176.31.45/ht/sd.aspx"
-
+        sipc_url = re.search("<ssi-app-sign-in>(.*)</ssi-app-sign-in>",config_data).group(1)
+        sipc_proxy = re.search("<sipc-proxy>(.*)</sipc-proxy>",config_data).group(1)
+        http_tunnel = re.search("<http-tunnel>(.*)</http-tunnel>",config_data).group(1)
         d_print(('sipc_url','sipc_proxy','http_tunnel'),locals())
         self.__sipc_url   = sipc_url
-        self._sipc_proxy  = sipc_proxy
-        self._http_tunnel = http_tunnel
-
+        self._sipc_proxy = sipc_proxy
+        self._http_tunnel= http_tunnel
+        
 
     def __get_uri(self):
-        #用户输入手机号时
-        if len(self.mobile_no) == 11:
-            url = self.__sipc_url+"?mobileno="+self.mobile_no+"&domain=fetion.com.cn&digest="+self._hash_passwd()
-        else:
-            url = self.__sipc_url+"?sid="+self.mobile_no+"&domain=fetion.com.cn&digest="+self._hash_passwd()
+        url = self.__sipc_url+"?mobileno="+self.mobile_no+"&pwd="+urllib.quote(self.passwd)
         d_print(('url',),locals())
         ret = http_send(url,login=True)
 
@@ -1353,8 +1376,8 @@ class PyFetion(SIPC):
             status = re.search('user-status="(\d+)"',body).group(1)
         except:
             return False
-
         domain = "fetion.com.cn"
+
         d_print(('ssic','sid','uri','status','domain'),locals(),"Get SID OK")
         self.sid = sid
         self.__uri = uri
@@ -1375,7 +1398,4 @@ class PyFetion(SIPC):
                     self.__log.debug("%s={%s}" % (var,str(namespace[var])))
         if msg:
             self.__log.debug("%s" % msg)
-
-
-
 

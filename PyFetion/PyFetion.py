@@ -22,7 +22,6 @@ from threading import RLock
 from threading import Thread
 from select import select
 from Queue import Queue
-from copy import copy
 
 
 FetionOnline = "400"
@@ -782,7 +781,6 @@ class PyFetion(SIPC):
     presence = ''
     debug = False
     contactlist = {}
-    grouplist = {}
     session = {}
 
     def __init__(self,mobile_no,passwd,login_type="TCP",debug=False):
@@ -805,12 +803,12 @@ class PyFetion(SIPC):
         #replace global function with self method
         d_print = self.__print
 
-        self.__sipc_url   = "https://uid.fetion.com.cn/ssiportal/SSIAppSignIn.aspx"
+        self.__sipc_url   = "https://uid.fetion.com.cn/ssiportal/SSIAppSignInV2.aspx"
         self._sipc_proxy = "221.176.31.45:8080"
         self._http_tunnel= "http://221.176.31.45/ht/sd.aspx"
         #uncomment this line for getting configuration from server everytime
         #It's very slow sometimes, so default use fixed configuration
-        #self.__set_system_config()
+        #self.__get_system_config()
 
 
     def login(self,presence=FetionOnline):
@@ -909,8 +907,7 @@ class PyFetion(SIPC):
         """add friend who should be mobile number or fetion number"""
         my_info = self.get_info()
         try:
-            #nick_name = re.findall('nickname="(.*?)" ',my_info)[0]
-            nick_name = my_info[0]
+            nick_name = re.findall('nickname="(.*?)" ',my_info)[0]
         except IndexError:
             nick_name = " "
 
@@ -961,22 +958,6 @@ class PyFetion(SIPC):
         """get detail information of me"""
         self.get("INFO","GetPersonalInfo")
         response = self.send()
-        nickname = re.findall('nickname="(.+?)"',response)[0]
-        impresa = re.findall('impresa="(.+?)"',response)[0]
-        #mobile = re.findall('mobile-no="(^1[35]\d{9})"',response)[0]
-        mobile = re.findall('mobile-no="(.+?)"',response)[0]
-        name = re.findall(' name="(.+?)"',response)[0]
-        gender = re.findall('gender="([01])"',response)[0]
-        fetion_number = re.findall('user-id="(\d{9})"',response)[0]
-        #email = re.findall('personal-email="(.+?)"',response)[0]
-        response = []
-        response.append(nickname)
-        response.append(impresa)
-        response.append(mobile)
-        response.append(name)
-        response.append(fetion_number)
-        #response.append(gender)
-        #response.append(email)
         return response
 
     def get_info(self,who=None):
@@ -995,7 +976,6 @@ class PyFetion(SIPC):
         self.get("INFO","GetContactsInfo",alluri)
         response = self.send()
         return response
-
 
 
     def set_info(self,info):
@@ -1027,7 +1007,7 @@ class PyFetion(SIPC):
     def get_contactlist(self):
         """get contact list
            contactlist is a dict:
-           {uri:[name,mobile-no,status,type,group-id]}
+           {uri:[name,mobile-no,status,type]}
         """
         buddy_list = ''
         allow_list = ''
@@ -1046,8 +1026,7 @@ class PyFetion(SIPC):
         except:
             return True
         try:
-            buddy_list = re.findall('uri="(.+?)" user-id="\d+" local-name="(.*?)" buddy-lists="(.*?)"',d)
-            self.grouplist = re.findall('id="(\d+)" name="(.*?)"',d)
+            buddy_list = re.findall('uri="(.+?)" user-id="\d+" local-name="(.*?)"',d)
         except:
             return False
 
@@ -1060,7 +1039,7 @@ class PyFetion(SIPC):
         
         for uri in chat_friends:
             if uri not in self.contactlist:
-                l = ['']*5
+                l = ['']*4
                 need_info.append(uri)
                 self.contactlist[uri] = l       
                 self.contactlist[uri][0] = ''      
@@ -1068,20 +1047,18 @@ class PyFetion(SIPC):
                 self.contactlist[uri][3] = 'A'      
 
 
+
         #buddy_list [(uri,local_name),...]
         for p in buddy_list:
-            l = ['']*5
+            l = ['']*4
 
             #set uri
-            self.contactlist[p[0]] = l
+            self.contactlist[p[0]] = l       
             #set local-name
             self.contactlist[p[0]][0] = p[1]       
             #set default status
             self.contactlist[p[0]][2] = FetionHidden       
             #self.contactlist[p[0]][2] = FetionOffline       
-
-            #set group id here!
-            self.contactlist[p[0]][4] = p[2]
 
             if p[0].startswith("tel"):
                 self.contactlist[p[0]][3] = 'T'      
@@ -1398,4 +1375,7 @@ class PyFetion(SIPC):
                     self.__log.debug("%s={%s}" % (var,str(namespace[var])))
         if msg:
             self.__log.debug("%s" % msg)
+
+
+
 
