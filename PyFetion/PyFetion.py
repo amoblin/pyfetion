@@ -22,6 +22,8 @@ from threading import RLock
 from threading import Thread
 from select import select
 from Queue import Queue
+from binascii import a2b_hex,b2a_hex
+from struct import pack
 
 
 FetionOnline = "400"
@@ -30,19 +32,21 @@ FetionAway   = "100"
 FetionHidden  = "0"
 FetionOffline = "365"
 
-FetionVer = "2008"
+FetionVer = "4.1.1160"
 #"SIPP" USED IN HTTP CONNECTION
 FetionSIPP= "SIPP"
 FetionNavURL = "nav.fetion.com.cn"
 FetionConfigURL = "http://nav.fetion.com.cn/nav/getsystemconfig.aspx"
 
 
-FetionConfigXML = """<config><user mobile-no="%s" /><client type="PC" version="3.5.2540" platform="W6.1" /><servers version="0" /><service-no version="0" /><parameters version="0" /><hints version="0" /><http-applications version="0" /><client-config version="0" /><services version="0" /></config>"""
+FetionConfigXML = """<config><user mobile-no="%s" /><client type="PC" version="%s" platform="W5.1" /><servers version="0" /><service-no version="0" /><parameters version="0" /><hints version="0" /><http-applications version="0" /><client-config version="0" /><services version="0" /><banners version="0" /></config>"""
 
-FetionLoginXML = """<args><device type="PC" version="1" client-version="3.5.2540" /><caps value="simple-im;im-session;temp-group;personal-group;im-relay;xeno-im;direct-sms;sms2fetion" /><events value="contact;permission;system-message;personal-group;compact" /><user-info attributes="all" /><presence><basic value="%s" desc="" /></presence></args>"""
+FetionLoginXML = """<args><device accept-language="default" machine-code="C5B84A959A8410556C26C23986430A3C" /><caps value="1FFF" /><events value="7F" /><user-info mobile-no="%s" user-id="%s"><personal version="0" attributes="v4default;alv2-version;alv2-warn;dynamic-version" /><custom-config version="0"/><contact-list version="0" buddy-attributes="v4default" /></user-info><credentials domains="fetion.com.cn;m161.com.cn;www.ikuwa.cn;games.fetion.com.cn;turn.fetion.com.cn;pos.fetion.com.cn;ent.fetion.com.cn;mms.fetion.com.cn"/><presence><basic value="%s" desc="" /><extendeds /></presence></args>
+"""
+
 
 proxy_info = False
-d_print = ''
+log = None
 #uncomment below line if you need proxy
 """
 proxy_info = {'user' : '',
@@ -51,6 +55,12 @@ proxy_info = {'user' : '',
               'port' : 8080 
               }
 """
+
+
+
+def Pass(*args):
+    pass
+
 
 class PyFetionException(Exception):
     """Base class for all exceptions
@@ -72,13 +82,13 @@ class PyFetionSocketError(PyFetionException):
 
         else:
             args = e.args
-            d_print(('args',),locals())
+            log(locals())
             try:
-                self.args = (e.errno,msg)
                 msg = socket.errorTab[e.errno]
-                self.code = e.errno
             except:
-                msg = e
+                msg = ''
+            self.args = (e.errno,msg)
+            self.code = e.errno
             self.msg  = msg
 
 class PyFetionAuthError(PyFetionException):
@@ -94,6 +104,13 @@ class PyFetionSupportError(PyFetionException):
 class PyFetionRegisterError(PyFetionException):
     """RegisterError.
     """
+    
+class PyFetionPiccError(PyFetionException):
+    """Authentication error.
+    Your need enter pic code .
+    """
+
+
 class SIPC():
 
     global FetionVer
@@ -104,7 +121,7 @@ class SIPC():
     #body = ''
     _content = ''
     code = ''
-    ver  = "SIP-C/2.0"
+    ver  = "SIP-C/4.0"
     Q   = 1
     I   = 1
     queue = Queue()
@@ -113,7 +130,7 @@ class SIPC():
         self.__seq = 1
 
         if args:
-            [self.sid, self._domain,self.login_type, self._http_tunnel,\
+            [self.userid,self.sid, self._domain,self.login_type, self._http_tunnel,\
              self._ssic, self._sipc_proxy, self.presence, self._lock] = args
         if self.login_type == "HTTP":
             guid = str(uuid1())
@@ -155,14 +172,13 @@ class SIPC():
                 ret = self.__tcp_recv()
                     
                 num = len(ret)
-                d_print(('num',),locals())
                 if num == 0:
                     return ret
                 if num == 1:
                     return ret[0]
                 for r in ret:
                     self.queue.put(r)
-                    d_print(('r',),locals())
+                    log(locals())
                     
                 if not self.queue.empty():
                     return self.queue.get()
@@ -178,10 +194,8 @@ class SIPC():
         except AttributeError,e:
             try:
                 cmd = re.search("(.+?) %s" % self.ver,response).group(1)
-                d_print(('cmd',),locals())
             except AttributeError,e:
                 pass
-                
             return cmd
         return self.code
  
@@ -190,30 +204,31 @@ class SIPC():
         if extra:
             body = extra[0]
         if cmd == "REG":
-            body = FetionLoginXML % self.presence
             self.init('R')
             if arg == 1:
+                self._header.insert(3,('CN','491c23644b7769ede1af078cb14901e2'))
+                self._header.insert(4,('CL','type="pc",version="%s"'%FetionVer))
+
                 pass
             if arg == 2:
-                nonce = re.search('nonce="(.*)"',extra[0]).group(1)
-                cnonce = self.__get_cnonce()
-                if FetionVer == "2008":
-                    response=self.__get_response_sha1(nonce,cnonce)
-                elif FetionVer == "2006":
-                    response=self.__get_response_md5(nonce,cnonce)
-                salt = self.__get_salt()
-                d_print(('nonce','cnonce','response','salt'),locals())
-                #If this step failed try to uncomment this lines
-                #del self._header[2]
-                #self._header.insert(2,('Q','2 R'))
-                
-                if FetionVer == "2008":
-                    self._header.insert(3,('A','Digest algorithm="SHA1-sess",response="%s",cnonce="%s",salt="%s",ssic="%s"' % (response,cnonce,salt,self._ssic)))
-                elif FetionVer == "2006":
-                    self._header.insert(3,('A','Digest response="%s",cnonce="%s"' % (response,cnonce)))
+                body = FetionLoginXML % (self.mobile_no,self._user_id,self.presence)
+                nonce = re.search('nonce="(.+?)"',extra[0]).group(1)
+                key = re.search('key="(.+?)"',extra[0]).group(1)
+                #signature = re.search('signature="(.+?)"',extra[0]).group(1)
+
+                p1 = sha1("fetion.com.cn:"+self.passwd).hexdigest()
+                p2 = sha1(pack("l",long(self._user_id))+a2b_hex(p1)).hexdigest()
+                plain = nonce+a2b_hex(p2)+a2b_hex("e146a9e31efb41f2d7ab58ba7ccd1f2958ec944a5cffdc514873986923c64567")
+                response = self.__RSA_Encrypt(plain,len(plain),a2b_hex(key[:-6]),a2b_hex(key[-6:]))
+
+
+                log(locals())
+
+                self._header.insert(3,('A','Digest algorithm="SHA1-sess-v4",response="%s"' % (response)))
             #If register successful 200 code get 
             if arg == 3:
-                return self.code
+                log('extra:'+extra)
+
 
         if cmd == "CatMsg":
             self.init('M')
@@ -272,7 +287,7 @@ class SIPC():
 
 
 
-        if cmd == "SetPresence":
+        if cmd == "SetPresenceV4":
             self.init('S')
             self._header.insert(3,('N',cmd))
             body = '<args><presence><basic value="%s" /></presence></args>' % arg
@@ -288,13 +303,10 @@ class SIPC():
             self._header.insert(3,('N',cmd))
             body = '<args><groups /></args>'
 
-        if cmd == "compactlist":
+        if cmd == "PresenceV4":
             self.init('SUB')
             self._header.append(('N',cmd))
-            body = '<args><subscription><contacts><contact uri="%s" type="3" />'% arg
-            for i in extra[0]:
-                body += '<contact uri="%s" type="3" />' % i
-            body += '</contacts></subscription></args>'
+            body = '<args><subscription self="v4default;mail-count;impresa;sms-online-status;feed-version;feed-type;es2all" buddy="v4default;feed-version;feed-type;es2all" version="" /></args>'
             
         if cmd == "StartChat":
             if arg == '':
@@ -373,17 +385,17 @@ class SIPC():
     def ack(self):
         """ack message from server"""
         content = self._content 
-        d_print(('content',),locals())
+        log('content:'+content)
         self.__tcp_send(content)
 
     def send(self):
         content = self._content 
         response = ''
         if self._lock:
-            d_print("acquire lock ")
+            #log("acquire lock ")
             self._lock.acquire()
-            d_print("acquire lock ok ")
-        d_print(('content',),locals())
+            #log("acquire lock ok ")
+        log('content:'+content)
         if self.login_type == "HTTP":
             #First time t SHOULD SET AS 'i'
             #Otherwise 405 code get
@@ -403,14 +415,10 @@ class SIPC():
                 response = self.__sendSIPP()
                 i += 1
             ret = self.__split(response)
-            num = len(ret)
-            d_print(('num',),locals())
             for rs in ret:
                 code = self.get_code(rs)
-                d_print(('rs',),locals())
                 try:
                     int(code)
-                    d_print(('code',),locals())
                     response = rs
                 except exceptions.ValueError:
                     self.queue.put(rs)
@@ -424,21 +432,17 @@ class SIPC():
                 except socket.error,e:
                     raise PyFetionSocketError(e)
 
-                num = len(ret)
-                d_print(('num',),locals())
                 for rs in ret:
                     code = self.get_code(rs)
-                    d_print(('rs',),locals())
                     try:
                         int(code)
-                        d_print(('code',),locals())
                         response = rs
                     except exceptions.ValueError:
                         self.queue.put(rs)
                         continue
         if self._lock:
             self._lock.release()
-            d_print("release lock")
+            #log("release lock")
  
 
         return response
@@ -452,7 +456,7 @@ class SIPC():
         if not ret:
             raise PyFetionSocketError(405,'Http error')
         response = ret.read()
-        d_print(('response',),locals())
+        log('response:'+response)
         self.__seq+=1
         return response
 
@@ -510,21 +514,20 @@ class SIPC():
 
                 p1 = data.rfind(str(L))
                 if p < p1:
-                    d_print("rn before L")
+                    log("rn before L")
                     left = L + n - (p1 + len(str(L))) + 4
 
                 else:
                     left = L - (n - p -4)
                 if left == L:
-                    d_print("It happened!")
+                    log("It happened!")
                     break
-                d_print(('n','L','p','left',),locals())
 
                 #if more bytes then last L
                 #come across another command: BN etc.
                 #read until another L come
                 if left < 0:
-                    d_print(('abc',),locals())
+                    log('abc')
                     d = ''
                     left = 0
                     while True:
@@ -532,8 +535,8 @@ class SIPC():
                         data += d
                         if re.search("L: (\d+)",d):
                             break
-                    d_print("read left bytes")
-                    d_print(('data',),locals())
+                    log("read left bytes")
+                    log('data:'+data)
                     total_data.append(data)
 
                 #read left bytes in last L
@@ -565,7 +568,7 @@ class SIPC():
         L = re.findall("L: (\d+)",data)
         L = [int(i) for i in L]
 
-        d_print(('data',),locals())
+        log('data:'+data)
         b = data.split('\r\n\r\n')
         for i in range(len(b)):
             if b[i].startswith(self.ver) and "L:" not in b[i]:
@@ -574,14 +577,12 @@ class SIPC():
                 break
 
         c.append(b[0])
-        d_print(('L','b',),locals())
         for i in range(0,len(L)):
             c.append(b[i+1][:L[i]])
             c.append(b[i+1][L[i]:])
 
 
         
-        d_print(('c',),locals())
         #remove last empty string
         if c[-1] == '':
             c.pop()
@@ -594,41 +595,32 @@ class SIPC():
                 s += c.pop()
             d.append(s)
 
-        d_print(('d',),locals())
         return d
+    def __RSA_Encrypt(self,plain,length,rsa_n,rsa_e):
+        import  ctypes 
+	import os
 
-    def __get_salt(self):
-        return self.__hash_passwd()[:8]
+	lib = "./RSA_Encrypt."
+	if os.name == "posix":
+	    lib += "so"
+	else:
+	    lib += "dll"
+	crypto_handler = ctypes.cdll.LoadLibrary(lib)
 
-    def __get_cnonce(self):
-        return md5(str(uuid1())).hexdigest().upper()
+        c_ubyte_p = ctypes.POINTER(ctypes.c_ubyte)
+        RSA_Encrypt = crypto_handler.RSA_Encrypt
+        RSA_Encrypt.argtypes = [ctypes.c_char_p,ctypes.c_int,c_ubyte_p,c_ubyte_p]
+        RSA_Encrypt.restype = c_ubyte_p
 
-    def __get_response_md5(self,nonce,cnonce):
-        #nonce = "3D8348924962579418512B8B3966294E"
-        #cnonce= "9E169DCA9CBD85F1D1A89A893E00917E"
-        key = md5("%s:%s:%s" % (self.sid,self._domain,self.passwd)).digest()
-        h1  = md5("%s:%s:%s" % (key,nonce,cnonce)).hexdigest().upper()
-        h2  = md5("REGISTER:%s" % self.sid).hexdigest().upper()
-        response  = md5("%s:%s:%s" % (h1,nonce,h2)).hexdigest().upper()
-        #d_print(('nonce','cnonce','key','h1','h2','response'),locals())
-        return response
 
-    def __get_response_sha1(self,nonce,cnonce):
-        #nonce = "3D8348924962579418512B8B3966294E"
-        #cnonce= "9E169DCA9CBD85F1D1A89A893E00917E"
-        hash_passwd = self.__hash_passwd()
-        hash_passwd_str = binascii.unhexlify(hash_passwd[8:])
-        key = sha1("%s:%s:%s" % (self.sid,self._domain,hash_passwd_str)).digest()
-        h1  = md5("%s:%s:%s" % (key,nonce,cnonce)).hexdigest().upper()
-        h2  = md5("REGISTER:%s" % self.sid).hexdigest().upper()
-        response = md5("%s:%s:%s" % (h1,nonce,h2)).hexdigest().upper()
-        return response
+        n = (ctypes.c_ubyte*128)()
+        ctypes.memmove(n,rsa_n,128)
 
-    def __hash_passwd(self):
-        #salt = '%s%s%s%s' % (chr(0x77), chr(0x7A), chr(0x6D), chr(0x03))
-        salt = 'wzm\x03'
-        src  = salt+sha1(self.passwd).digest()
-        return "777A6D03"+sha1(src).hexdigest().upper()
+        e = (ctypes.c_ubyte*3)()
+        ctypes.memmove(e,rsa_e,3)
+
+        ret = RSA_Encrypt(plain,length,n,e)
+        return b2a_hex(ctypes.string_at(ret,128))
 
 
 
@@ -640,6 +632,7 @@ def http_send(url,body='',exheaders='',login=False):
               }
     headers.update(exheaders)
 
+    log('url:'+url)
     if proxy_info:
         proxy_support = urllib2.ProxyHandler(\
             {"http":"http://%(user)s:%(pass)s@%(host)s:%(port)d" % proxy_info})
@@ -648,7 +641,10 @@ def http_send(url,body='',exheaders='',login=False):
         opener = urllib2.build_opener()
 
     urllib2.install_opener(opener)
-    request = urllib2.Request(url,headers=headers,data=body)
+    if body == '':
+        request = urllib2.Request(url,headers=headers)
+    else:
+        request = urllib2.Request(url,headers=headers,data=body)
     #add retry for GAE. 
     #PyFetion will get 405 code sometimes, we should re-send the request.
     retry = 5
@@ -663,7 +659,7 @@ def http_send(url,body='',exheaders='',login=False):
                 code = e.reason.errno
                 msg = e.reason.strerror
 
-            d_print(('code','msg'),locals())
+            log(locals())
             if code == 401 or code == 400:
                 if login:
                     raise PyFetionAuthError(code,msg)
@@ -672,6 +668,8 @@ def http_send(url,body='',exheaders='',login=False):
             if code == 405:
                 retry = retry - 1
                 continue
+            if code == 421:
+                raise PyFetionPiccError(code,msg)
             raise PyFetionSocketError(code,msg)
         break
     return conn
@@ -696,7 +694,7 @@ class on_cmd_I(Thread,SIPC):
             credential = re.findall('credential="(.+?)"',self.response)[0]
             sipc_proxy = re.findall('address="(.+?);',self.response)[0]
         except:
-            d_print("find tag error")
+            log("find tag error")
             return
 
         self.from_uri = self.from_uri.rstrip()
@@ -718,7 +716,7 @@ class on_cmd_I(Thread,SIPC):
             else:
                 response = self.recv()
             if len(response) == 0:
-                d_print("User Left converstion")
+                log("User Left converstion")
                 self.fetion.session.pop(self.from_uri)
                 return
             self.deal_msg(response)
@@ -732,7 +730,7 @@ class on_cmd_I(Thread,SIPC):
             Q = re.findall('Q: (-?\d+) M',response)
             I = re.findall('I: (-?\d+)',response)
         except:
-            d_print("NO Q")
+            log("NO Q")
             return False
 
         for i in range(len(Q)):
@@ -751,7 +749,6 @@ class on_cmd_I(Thread,SIPC):
         self.deal_msg(self.response)
 
     def _send_msg(self,msg):
-        msg = msg.replace('<','&lt;')
         self.get("SendMsg",'',msg)
         self.send()
         
@@ -767,6 +764,7 @@ class PyFetion(SIPC):
     __log = ''
     __sipc_url = ''
     _ssic = ''
+    _user_id = ''
     _lock = RLock()
     _sipc_proxy  = ''
     _domain = ''
@@ -787,28 +785,30 @@ class PyFetion(SIPC):
         self.mobile_no = mobile_no
         self.passwd = passwd
         self.login_type = login_type
+        global log
          
 
         if debug == True:
-            logging.basicConfig(level=logging.DEBUG,format='%(message)s')
-            self.__log = logging
+            logging.basicConfig(level=logging.DEBUG,
+                        format='%(asctime)s %(lineno)d %(funcName)s  %(message)s',
+                        )
+            log = logging.debug
         elif debug == "FILE":
             logging.basicConfig(level=logging.DEBUG,
-                        format='%(asctime)s %(thread)d %(message)s',
+                    format='Line:%(lineno)d Fun:%(funcName)s  %(message)s',
                         filename='./PyFetion.log',
                         filemode='w')
-            self.__log = logging
-
-        global d_print
+            log = logging.debug
+        else:
+            log = Pass
+        
         #replace global function with self method
-        d_print = self.__print
 
-        self.__sipc_url   = "https://uid.fetion.com.cn/ssiportal/SSIAppSignInV2.aspx"
+        self.__sipc_url   = "https://uid.fetion.com.cn/ssiportal/SSIAppSignInV4.aspx"
         self._sipc_proxy = "221.176.31.45:8080"
         self._http_tunnel= "http://221.176.31.45/ht/sd.aspx"
-        #uncomment this line for getting configuration from server everytime
-        #It's very slow sometimes, so default use fixed configuration
-        #self.__get_system_config()
+        #uncomment this line for getting configuration from server
+        #self.__set_system_config()
 
 
     def login(self,presence=FetionOnline):
@@ -817,21 +817,16 @@ class PyFetion(SIPC):
         self.presence = presence
 
         try:
-            self.__register(self._ssic,self._domain)
+            response = self.__register(self._ssic,self._domain)
         except PyFetionRegisterError,e:
-            d_print("Register Failed!")
+            log("Register Failed!")
             return False
         #self.get_personal_info()
-        if not self.get_contactlist():
-            d_print("get contactlist error")
-            return False
-        self.get("compactlist",self.__uri,self.contactlist.keys())
+        self.get_contactlist(response)
+
+        self.get("PresenceV4","")
         response = self.send()
-        code = self.get_code(response)
-        if code != 200:
-            return False
-        #self.get("PGGetGroupList",self.__uri)
-        #response = self.send()
+        log(locals())
 
         self.get_offline_msg()
         self.receving = True
@@ -853,10 +848,10 @@ class PyFetion(SIPC):
             credential = re.findall('credential="(.+?)"',response)[0]
             sipc_proxy = re.findall('address="(.+?);',response)[0]
         except:
-            d_print("find tag error")
+            log("find tag error")
             return False
 
-        args = [self.sid,self._domain,self.login_type,self._http_tunnel,self._ssic,sipc_proxy,self.presence,None]
+        args = [self._user_id,self.sid,self._domain,self.login_type,self._http_tunnel,self._ssic,sipc_proxy,self.presence,None]
 
 
         _SIPC = SIPC(args)
@@ -885,12 +880,12 @@ class PyFetion(SIPC):
         """set status of fetion"""
         if self.presence == presence:
             return True
-        self.get("SetPresence",presence)
+        self.get("SetPresenceV4",presence)
         response = self.send()
         code = self.get_code(response)
         if code == 200:
             self.presence = presence
-            d_print("set presence ok.")
+            log("set presence ok.")
             return True
         return False
 
@@ -917,10 +912,10 @@ class PyFetion(SIPC):
             code = self._add(who,nick_name,"AddMobileBuddy")
 
         if code == 404 or code == 400 :
-            d_print("Not Found")
+            log("Not Found")
             return False
         if code == 521:
-            d_print("Aleady added.")
+            log("Aleady added.")
             return True
         if code == 200:
             return True
@@ -940,7 +935,7 @@ class PyFetion(SIPC):
         response = self.send()
         code = self.get_code(response)
         if code == 404 or code == 400 :
-            d_print("Not Found")
+            log("Not Found")
             return False
         if code == 200:
             return True
@@ -998,54 +993,25 @@ class PyFetion(SIPC):
                 continue
             if self.contactlist[uri][0] == '':
                 self.contactlist[uri][0] = nickname
+            self.contactlist[uri][1] = mobile_no
 
-            if self.contactlist[uri][1] == '':
-                self.contactlist[uri][1] = mobile_no
-
+        #log(('self.contactlist',),locals())
 
     
-    def get_contactlist(self):
+    def get_contactlist(self,response):
         """get contact list
            contactlist is a dict:
            {uri:[name,mobile-no,status,type]}
         """
         buddy_list = ''
-        allow_list = ''
         chat_friends = ''
         need_info = []
 
-        self.get("INFO","GetContactList")
-        response = self.send()
-        code = self.get_code(response)
-        if code != 200:
-            return False
-
+        d = re.findall('<contact-list (.*?)</contact-list>',response)[0]
         try:
-            d = re.findall('<buddy-lists>(.*?)<allow-list>',response)[0]
-        #No buddy here
-        except:
-            return True
-        try:
-            buddy_list = re.findall('uri="(.+?)" user-id="\d+" local-name="(.*?)"',d)
+            buddy_list = re.findall('<b .+? u="(.+?)" n="(.*?)"',d)
         except:
             return False
-
-        try:
-            d = re.findall('<chat-friends>(.*?)</chat-friends>',d)[0]
-            chat_friends = re.findall('uri="(.+?)" user-id="\d+"',d)
-        except:
-            pass
-
-        
-        for uri in chat_friends:
-            if uri not in self.contactlist:
-                l = ['']*4
-                need_info.append(uri)
-                self.contactlist[uri] = l       
-                self.contactlist[uri][0] = ''      
-                self.contactlist[uri][2] = FetionHidden       
-                self.contactlist[uri][3] = 'A'      
-
 
 
         #buddy_list [(uri,local_name),...]
@@ -1072,27 +1038,9 @@ class PyFetion(SIPC):
                 self.contactlist[p[0]][3] = 'B'      
                 if self.contactlist[p[0]][0] == '':
                     need_info.append(p[0])
-        """
-        try:
-            s = re.findall('<allow-list>(.+?)</allow-list>',response)[0]
-            allow_list = re.findall('uri="(.+?)"',s)
-        except:
-            pass
 
-        #allow_list [uri,...]
-        for uri in allow_list:
-            if uri not in self.contactlist:
-                l = ['']*4
-                need_info.append(uri)
-                self.contactlist[uri] = l       
-                self.contactlist[uri][0] = ''      
-                self.contactlist[uri][2] = FetionHidden       
-                self.contactlist[uri][3] = 'A'      
-
-        """
-        ret = self.get_info(need_info)
-        self.set_info(ret)
-
+        #ret = self.get_info(need_info)
+        log(len(self.contactlist))
         return True
 
     def get_uri(self,who):
@@ -1131,21 +1079,20 @@ class PyFetion(SIPC):
             to = self.get_uri(to)
             if not to:
                 return False
-        msg = msg.replace('<','&lt;')
         self.get(flag,to,msg)
         try:
             response = self.send()
         except PyFetionSocketError,e:
-            d_print(('e',),locals())
+            log(locals())
             return False
 
         code = self.get_code(response)
         if code == 280:
-            d_print("Send sms OK!")
+            log("Send sms OK!")
         elif code == 200:
-            d_print("Send msg OK!")
+            log("Send msg OK!")
         else:
-            d_print(('code',),locals())
+            log(locals())
             return False
         return True
 
@@ -1169,16 +1116,15 @@ class PyFetion(SIPC):
             if not to:
                 return False
 
-        msg = msg.replace('<','&lt;')
         self.get("SSSetScheduleSms",msg,time,to)
         response = self.send()
         code = self.get_code(response)
         if code == 486:
-            d_print("Busy Here")
+            log("Busy Here")
             return None
         if code == 200:
             id = re.search('id="(\d+)"',response).group(1)
-            d_print(('id',),locals(),"schedule_sms id")
+            log(locals())
             return id
 
 
@@ -1188,7 +1134,7 @@ class PyFetion(SIPC):
         response = self.send()
         code = self.get_code(response)
         if code == 200:
-            d_print("keepalive message send ok.")
+            log("keepalive message send ok.")
             return True
         return False
 
@@ -1209,14 +1155,13 @@ class PyFetion(SIPC):
             if response =="TimeOut":
                 continue
             elif len(response) == 0:
-                d_print("logout")
+                log("logout")
                 return
             elif response.startswith("BN"):
                 try:
                     type = re.findall('<event type="(.+?)"',response)[0]
                 except IndexError:
-                    d_print("Didn't find type")
-                    d_print(('response',),locals())
+                    log('response:'+response)
                     
 
                 if type == "ServiceResult":
@@ -1227,19 +1172,29 @@ class PyFetion(SIPC):
                     yield [type]
                 if type == "PresenceChanged":
                     self.set_info(response)
-                    ret = re.findall('<presence uri="(.+?)">.+?value="(.+?)".+?type="sms">(\d+)\.',response)
+                    #uri,mobile_no,name,presence
+                    ret = re.findall('<c id=.+? su="(.+?)".+?m="(.*?)".+?n="(.*?)".+?b="(.+?)"',response)
                     if not ret:
-                        ret = re.findall('<presence uri="(.+?)">.+?value="(.+?)"',response)
+                        ret = re.findall('<c id=.+? su="(.+?)".+?m="(.*?)".+?b="(.+?)"',response)
 
 
+                    log(ret)
                     #remove self uri
                     event = [i for i in ret if i[0] != self.__uri]
                     event = list(set(event))
+                    log(event)
                     for e in event:
-                        if len(e) == 3 and e[2] == FetionOffline:
-                            self.contactlist[e[0]][2] = e[2]
+                        #mobile_no
+                        self.contactlist[e[0]][1] = e[1]
+                        if len(e) == 4:
+                            #name
+                            if not self.contactlist[e[0]][0]:
+                                self.contactlist[e[0]][0] = e[2]
+                            #presence
+                            self.contactlist[e[0]][2] = e[3]
                         else:
-                            self.contactlist[e[0]][2] = e[1]
+                            #presence
+                            self.contactlist[e[0]][2] = e[2]
                             
 
                     yield [type,event]
@@ -1261,7 +1216,7 @@ class PyFetion(SIPC):
                     from_uri = re.findall('F: (.*)',response)[0].strip()
                     msg = re.findall('\r\n\r\n(.*)',response,re.S)[0]
                 except:
-                    d_print("Message without content")
+                    log("Message without content")
                     continue
                 #if from PC remove <Font>
                 try:
@@ -1311,12 +1266,13 @@ class PyFetion(SIPC):
         SIPC.__init__(self)
         response = ''
         for step in range(1,3):
-                self.get("REG",step,response)
-                response = self.send()
+            self.get("REG",step,response)
+            response = self.send()
 
         code = self.get_code(response)
         if code == 200:
-            d_print("register successful.")
+            log("register successful.")
+            return response
         else:
             raise PyFetionRegisterError(code,response)
 
@@ -1324,58 +1280,63 @@ class PyFetion(SIPC):
     def __get_system_config(self):
         global FetionConfigURL
         global FetionConfigXML
+        global FetionVer
         url = FetionConfigURL
-        body = FetionConfigXML % self.mobile_no
-        d_print(('url','body'),locals())
+        body = FetionConfigXML % (self.mobile_no,FetionVer)
         config_data = http_send(url,body).read()
          
 
         sipc_url = re.search("<ssi-app-sign-in>(.*)</ssi-app-sign-in>",config_data).group(1)
         sipc_proxy = re.search("<sipc-proxy>(.*)</sipc-proxy>",config_data).group(1)
         http_tunnel = re.search("<http-tunnel>(.*)</http-tunnel>",config_data).group(1)
-        d_print(('sipc_url','sipc_proxy','http_tunnel'),locals())
+        log(locals())
         self.__sipc_url   = sipc_url
         self._sipc_proxy = sipc_proxy
         self._http_tunnel= http_tunnel
         
 
     def __get_uri(self):
-        url = self.__sipc_url+"?mobileno="+self.mobile_no+"&pwd="+urllib.quote(self.passwd)
-        d_print(('url',),locals())
-        ret = http_send(url,login=True)
+        url = self.__sipc_url+"?mobileno="+self.mobile_no+"&domains=fetion.com.cn%3bm161.com.cn%3bwww.ikuwa.cn"+"&v4digest-type=1&v4digest="+sha1("fetion.com.cn:"+self.passwd).hexdigest()
+        while True:
+            try:
+                ret = http_send(url,login=True)
+            except PyFetionPiccError,e:
+                algorithm = re.findall('algorithm="(.+?)"',e[1])[0]
+                pic_url = "http://nav.fetion.com.cn/nav/GetPicCodeV4.aspx?algorithm="+algorithm
+                ret = http_send(pic_url,login=True)
+                data = ret.read()
+                log('data:'+data)
+
+                pic_id = re.findall('pic-certificate id="(.+?)"',data)[0]
+                pic64 = re.findall('pic="(.+?)"',data)[0]
+                import base64
+                pic = base64.decodestring(pic64)
+                f = file("fetion_verify.bmp","wb")
+                f.write(pic)
+                f.close()
+                pic_code = raw_input()
+                url = url+"&pid="+pic_id+"&pic="+pic_code+"&algorithm="+algorithm
+                continue
+            break
 
         header = str(ret.info())
         body   = ret.read()
         try:
-            ssic = re.search("ssic=(.*);",header).group(1)
-            sid  = re.search("sip:(.*)@",body).group(1)
-            uri  = re.search('uri="(.*)" mobile-no',body).group(1)
+            ssic = re.search("ssic=(.+?);",header).group(1)
+            sid  = re.search("sip:(.+?)@",body).group(1)
+            uri  = re.search('uri="(.+?)" mobile-no',body).group(1)
+            user_id = re.search('user-id="(.+?)"',body).group(1)
             status = re.search('user-status="(\d+)"',body).group(1)
         except:
             return False
         domain = "fetion.com.cn"
 
-        d_print(('ssic','sid','uri','status','domain'),locals(),"Get SID OK")
+        log(locals())
         self.sid = sid
         self.__uri = uri
         self._ssic = ssic
+        self._user_id = user_id
         self._domain = domain
 
         return True
-
-    def __print(self,vars=(),namespace=[],msg=''):
-        """if only sigle variable ,arg should like this ('var',)"""
-        if not self.__log:
-            return
-        if vars and not namespace and not msg:
-            msg = vars
-        if vars and namespace:
-            for var in vars:
-                if var in namespace:
-                    self.__log.debug("%s={%s}" % (var,str(namespace[var])))
-        if msg:
-            self.__log.debug("%s" % msg)
-
-
-
 

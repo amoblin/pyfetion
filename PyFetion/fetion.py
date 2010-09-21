@@ -172,20 +172,18 @@ class fetion_input(Thread):
                     printl("命令格式:sms[msg] 编号[手机号]")
                     return
            
-            c = copy(self.phone.contactlist)
             #使用编号作为参数
             if len(cmd[1]) < 4:
                 n = int(cmd[1])
                 if n >= 0 and n < len(self.phone.contactlist):
-                    self.to = c.keys()[n]
-                    self.hint = "给%s发%s:" % (c[self.to][0],s[self.type])
+                    self.to = self.phone.contactlist.keys()[n]
+                    self.hint = "给%s发%s:" % (self.phone.contactlist.values()[n][0],s[self.type])
                 else:
                     printl("编号超出好友范围")
-                    return
 
             #使用手机号作为参数
             elif len(cmd[1]) == 11:
-                for c in c.items():
+                for c in self.phone.contactlist.items():
                     if c[1][1] == cmd[1]:
                         self.to = c[0]
                         self.hint = "给%s发%s:" % (c[1][0],s[self.type])
@@ -204,7 +202,7 @@ class fetion_input(Thread):
                 else:
                     ret = self.phone.start_chat(self.to)
                     if ret:
-                        if ret == c[self.to][2]:
+                        if ret == self.phone.contactlist[self.to][2]:
                             printl("该好友果然隐身")
                         elif ret == FetionOnline:
                             printl("该好友的确不在线哦")
@@ -417,6 +415,7 @@ def main(argv=None):
         printl("网络通信出错 请检查网络连接")
         return 1
     finally:
+        pass
         t.stop()
 
     if ret:
