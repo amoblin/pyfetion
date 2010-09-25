@@ -225,6 +225,8 @@ class SIPC():
                 log(locals())
 
                 self._header.insert(3,('A','Digest algorithm="SHA1-sess-v4",response="%s"' % (response)))
+                if self.verify:
+                    self._header.insert(4,('A','Verify algorithm="%s",type="GeneralPic",response="%s",chid="%s"'%(self.verify_info[0],self.verify_info[1],self.verify_info[2])))
             #If register successful 200 code get 
             if arg == 3:
                 log('extra:'+extra)
@@ -1316,6 +1318,8 @@ class PyFetion(SIPC):
                 f.close()
                 pic_code = raw_input()
                 url = url+"&pid="+pic_id+"&pic="+pic_code+"&algorithm="+algorithm
+                self.verify = True
+                self.verify_info = [algorithm,pic_code,pic_id]
                 continue
             break
 
