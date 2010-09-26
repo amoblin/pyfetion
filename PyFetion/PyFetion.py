@@ -782,6 +782,7 @@ class PyFetion(SIPC):
     debug = False
     contactlist = {}
     session = {}
+    verify = False
 
     def __init__(self,mobile_no,passwd,login_type="TCP",debug=False):
         self.mobile_no = mobile_no
