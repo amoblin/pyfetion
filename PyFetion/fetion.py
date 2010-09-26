@@ -328,10 +328,13 @@ class progressBar(Thread):
 
     def run(self):
         i = 1
+        n = 10
         while self.running:
             sys.stderr.write('\r')
-            sys.stderr.write('-'*i)
+            i = i % n
+            sys.stderr.write('='*i)
             sys.stderr.write('>')
+            sys.stderr.write('='*(n-i))
             sleep(0.5)
             i += 1
 

@@ -2,13 +2,9 @@
 # -*- coding: utf-8 -*-
 #MIT License
 #By : cocobear.cn@gmail.com
-#Ver:0.2
 
-import urllib
 import urllib2
-import sys,re
-import binascii
-import hashlib
+import re
 import socket
 import os
 import time
@@ -17,7 +13,6 @@ import logging
 
 from hashlib import md5
 from hashlib import sha1
-from uuid import uuid1
 from threading import RLock
 from threading import Thread
 from select import select
@@ -41,7 +36,7 @@ FetionConfigURL = "http://nav.fetion.com.cn/nav/getsystemconfig.aspx"
 
 FetionConfigXML = """<config><user mobile-no="%s" /><client type="PC" version="%s" platform="W5.1" /><servers version="0" /><service-no version="0" /><parameters version="0" /><hints version="0" /><http-applications version="0" /><client-config version="0" /><services version="0" /><banners version="0" /></config>"""
 
-FetionLoginXML = """<args><device accept-language="default" machine-code="C5B84A959A8410556C26C23986430A3C" /><caps value="1FFF" /><events value="7F" /><user-info mobile-no="%s" user-id="%s"><personal version="0" attributes="v4default;alv2-version;alv2-warn;dynamic-version" /><custom-config version="0"/><contact-list version="0" buddy-attributes="v4default" /></user-info><credentials domains="fetion.com.cn;m161.com.cn;www.ikuwa.cn;games.fetion.com.cn;turn.fetion.com.cn;pos.fetion.com.cn;ent.fetion.com.cn;mms.fetion.com.cn"/><presence><basic value="%s" desc="" /><extendeds /></presence></args>
+FetionLoginXML = """<args><device accept-language="default" machine-code="00000000000000000000000000000000" /><caps value="1FFF" /><events value="7F" /><user-info mobile-no="%s" user-id="%s"><personal version="0" attributes="v4default;alv2-version;alv2-warn;dynamic-version" /><custom-config version="0"/><contact-list version="0" buddy-attributes="v4default" /></user-info><credentials domains="fetion.com.cn;m161.com.cn;www.ikuwa.cn;games.fetion.com.cn;turn.fetion.com.cn;pos.fetion.com.cn;ent.fetion.com.cn;mms.fetion.com.cn"/><presence><basic value="%s" desc="" /><extendeds /></presence></args>
 """
 
 
@@ -227,9 +222,6 @@ class SIPC():
                 self._header.insert(3,('A','Digest algorithm="SHA1-sess-v4",response="%s"' % (response)))
                 if self.verify:
                     self._header.insert(4,('A','Verify algorithm="%s",type="GeneralPic",response="%s",chid="%s"'%(self.verify_info[0],self.verify_info[1],self.verify_info[2])))
-            #If register successful 200 code get 
-            if arg == 3:
-                log('extra:'+extra)
 
 
         if cmd == "CatMsg":
@@ -600,14 +592,13 @@ class SIPC():
         return d
     def __RSA_Encrypt(self,plain,length,rsa_n,rsa_e):
         import  ctypes 
-	import os
 
-	lib = "./RSA_Encrypt."
-	if os.name == "posix":
-	    lib += "so"
-	else:
-	    lib += "dll"
-	crypto_handler = ctypes.cdll.LoadLibrary(lib)
+        lib = "./RSA_Encrypt."
+        if os.name == "posix":
+            lib += "so"
+        else:
+            lib += "dll"
+        crypto_handler = ctypes.cdll.LoadLibrary(lib)
 
         c_ubyte_p = ctypes.POINTER(ctypes.c_ubyte)
         RSA_Encrypt = crypto_handler.RSA_Encrypt
@@ -627,10 +618,10 @@ class SIPC():
 
 
 def http_send(url,body='',exheaders='',login=False):
-    global proxy_info
+    global proxy_info,FetionVer
     conn = ''
     headers = {
-               'User-Agent':'IIC2.0/PC 3.2.0540',
+               'User-Agent':'IIC4.0/PC %s'%FetionVer,
               }
     headers.update(exheaders)
 
@@ -675,6 +666,28 @@ def http_send(url,body='',exheaders='',login=False):
             raise PyFetionSocketError(code,msg)
         break
     return conn
+
+
+
+def get_pic(algorithm,obj):
+
+    pic_url = "http://nav.fetion.com.cn/nav/GetPicCodeV4.aspx?algorithm="+algorithm
+    ret = http_send(pic_url,login=True)
+    data = ret.read()
+
+    pic_id = re.findall('pic-certificate id="(.+?)"',data)[0]
+    pic64 = re.findall('pic="(.+?)"',data)[0]
+    import base64
+    from ImageShow import show
+    fname = "fetion_verify.bmp"
+    pic = base64.decodestring(pic64)
+    f = file(fname,"wb")
+    f.write(pic)
+    f.close()
+    show(fname)
+    pic_code = raw_input("\t输入验证码".decode('utf-8').encode((os.name == 'posix' and 'utf-8' or 'cp936')))
+    obj.verify = True
+    obj.verify_info = [algorithm,pic_code,pic_id]
 
 class on_cmd_I(Thread,SIPC):
      #if there is invitation SIP method [I]
@@ -783,6 +796,7 @@ class PyFetion(SIPC):
     contactlist = {}
     session = {}
     verify = False
+    verify_info = []
 
     def __init__(self,mobile_no,passwd,login_type="TCP",debug=False):
         self.mobile_no = mobile_no
@@ -1268,17 +1282,26 @@ class PyFetion(SIPC):
     def __register(self,ssic,domain):
         SIPC.__init__(self)
         response = ''
-        for step in range(1,3):
-            self.get("REG",step,response)
-            response = self.send()
+        ret = ''
 
-        code = self.get_code(response)
-        if code == 200:
-            log("register successful.")
-            return response
-        else:
-            raise PyFetionRegisterError(code,response)
+        self.get("REG",1,response)
+        response = self.send()
 
+        while True:
+            self.get("REG",2,response)
+            ret = self.send()
+            code = self.get_code(ret)
+            if code == 200:
+                log("register successful.")
+                break
+            elif code == 421:
+                algorithm = re.findall('algorithm="(.+?)"',ret)[0]
+                get_pic(algorithm,self)
+                continue
+            else:
+                raise PyFetionRegisterError(code,ret)
+
+        return ret
 
     def __get_system_config(self):
         global FetionConfigURL
@@ -1305,22 +1328,8 @@ class PyFetion(SIPC):
                 ret = http_send(url,login=True)
             except PyFetionPiccError,e:
                 algorithm = re.findall('algorithm="(.+?)"',e[1])[0]
-                pic_url = "http://nav.fetion.com.cn/nav/GetPicCodeV4.aspx?algorithm="+algorithm
-                ret = http_send(pic_url,login=True)
-                data = ret.read()
-                log('data:'+data)
-
-                pic_id = re.findall('pic-certificate id="(.+?)"',data)[0]
-                pic64 = re.findall('pic="(.+?)"',data)[0]
-                import base64
-                pic = base64.decodestring(pic64)
-                f = file("fetion_verify.bmp","wb")
-                f.write(pic)
-                f.close()
-                pic_code = raw_input()
-                url = url+"&pid="+pic_id+"&pic="+pic_code+"&algorithm="+algorithm
-                self.verify = True
-                self.verify_info = [algorithm,pic_code,pic_id]
+                get_pic(algorithm,self)
+                url = url+"&pid="+self.verify_info[2]+"&pic="+self.verify_info[1]+"&algorithm="+algorithm
                 continue
             break
 
