@@ -214,7 +214,8 @@ class SIPC():
                 p1 = sha1("fetion.com.cn:"+self.passwd).hexdigest()
                 p2 = sha1(pack("l",long(self._user_id))+a2b_hex(p1)).hexdigest()
                 plain = nonce+a2b_hex(p2)+a2b_hex("e146a9e31efb41f2d7ab58ba7ccd1f2958ec944a5cffdc514873986923c64567")
-                response = self.__RSA_Encrypt(plain,len(plain),a2b_hex(key[:-6]),a2b_hex(key[-6:]))
+                #response = self.__RSA_Encrypt(plain,len(plain),a2b_hex(key[:-6]),a2b_hex(key[-6:]))
+                response = self.__RSA_Encrypt(plain,len(plain),key[:-6],key[-6:])
 
 
                 log(locals())
@@ -591,7 +592,7 @@ class SIPC():
 
         return d
     def __RSA_Encrypt(self,plain,length,rsa_n,rsa_e):
-        import  ctypes 
+        '''import ctypes 
 
         lib = "./RSA_Encrypt."
         if os.name == "posix":
@@ -613,9 +614,13 @@ class SIPC():
         ctypes.memmove(e,rsa_e,3)
 
         ret = RSA_Encrypt(plain,length,n,e)
-        return b2a_hex(ctypes.string_at(ret,128))
-
-
+        return b2a_hex(ctypes.string_at(ret,128))'''
+        
+        import rsa
+        ret = rsa.rsa(plain, rsa_e, rsa_n[:256], False)
+        ret = b2a_hex(ret)
+        
+        return ret
 
 def http_send(url,body='',exheaders='',login=False):
     global proxy_info,FetionVer
