@@ -1268,7 +1268,7 @@ class PyFetion(SIPC):
                     from_uri = re.findall('F: (.*)',response)[0].rstrip()
                 except:
                     pass
-                args = [self.sid,self._domain,self.login_type,self._http_tunnel,self._ssic,self._sipc_proxy,self.presence,None]
+                args = [self._user_id,self.sid,self._domain,self.login_type,self._http_tunnel,self._ssic,self._sipc_proxy,self.presence,None]
 
                 
                 t = on_cmd_I(self,response,args)
