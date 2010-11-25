@@ -36,8 +36,7 @@ FetionConfigURL = "http://nav.fetion.com.cn/nav/getsystemconfig.aspx"
 
 FetionConfigXML = """<config><user mobile-no="%s" /><client type="PC" version="%s" platform="W5.1" /><servers version="0" /><service-no version="0" /><parameters version="0" /><hints version="0" /><http-applications version="0" /><client-config version="0" /><services version="0" /><banners version="0" /></config>"""
 
-FetionLoginXML = """<args><device accept-language="default" machine-code="0A0003000000" /><caps value="1FFF" /><events value="7F" /><user-info mobile-no="%s" user-id="%s"><personal version="0" attributes="v4default;alv2-version;alv2-warn;dynamic-version" /><custom-config version="0"/><contact-list version="0" buddy-attributes="v4default" /></user-info><credentials domains="fetion.com.cn;m161.com.cn;www.ikuwa.cn;games.fetion.com.cn;turn.fetion.com.cn;pos.fetion.com.cn;ent.fetion.com.cn;mms.fetion.com.cn"/><presence><basic value="%s" desc="" /><extendeds /></presence></args>
-"""
+FetionLoginXML = """<args><device accept-language="default" machine-code="0A0003000000" /><caps value="1FFF" /><events value="7F" /><user-info mobile-no="%s" user-id="%s"><personal version="0" attributes="v4default;alv2-version;alv2-warn;dynamic-version" /><custom-config version="0"/><contact-list version="0" buddy-attributes="v4default" /></user-info><credentials domains="fetion.com.cn;m161.com.cn;www.ikuwa.cn;games.fetion.com.cn;turn.fetion.com.cn;pos.fetion.com.cn;ent.fetion.com.cn;mms.fetion.com.cn"/><presence><basic value="%s" desc="" /><extendeds /></presence></args>"""
 
 
 proxy_info = False
@@ -209,16 +208,11 @@ class SIPC():
                 body = FetionLoginXML % (self.mobile_no,self._user_id,self.presence)
                 nonce = re.search('nonce="(.+?)"',extra[0]).group(1)
                 key = re.search('key="(.+?)"',extra[0]).group(1)
-                #signature = re.search('signature="(.+?)"',extra[0]).group(1)
 
                 p1 = sha1("fetion.com.cn:"+self.passwd).hexdigest()
-                p2 = sha1(pack("l",long(self._user_id))+a2b_hex(p1)).hexdigest()
+                p2 = sha1(pack("i",int(self._user_id))+a2b_hex(p1)).hexdigest()
                 plain = nonce+a2b_hex(p2)+a2b_hex("e146a9e31efb41f2d7ab58ba7ccd1f2958ec944a5cffdc514873986923c64567")
-                #response = self.__RSA_Encrypt(plain,len(plain),a2b_hex(key[:-6]),a2b_hex(key[-6:]))
                 response = self.__RSA_Encrypt(plain,len(plain),key[:-6],key[-6:])
-
-
-                log(locals())
 
                 self._header.insert(3,('A','Digest algorithm="SHA1-sess-v4",response="%s"' % (response)))
                 if self.verify:
@@ -441,6 +435,7 @@ class SIPC():
             #log("release lock")
  
 
+        log('response:'+response)
         return response
 
 
@@ -593,35 +588,9 @@ class SIPC():
 
         return d
     def __RSA_Encrypt(self,plain,length,rsa_n,rsa_e):
-        '''import ctypes 
-
-        lib = "./RSA_Encrypt."
-        if os.name == "posix":
-            lib += "so"
-        else:
-            lib += "dll"
-        crypto_handler = ctypes.cdll.LoadLibrary(lib)
-
-        c_ubyte_p = ctypes.POINTER(ctypes.c_ubyte)
-        RSA_Encrypt = crypto_handler.RSA_Encrypt
-        RSA_Encrypt.argtypes = [ctypes.c_char_p,ctypes.c_int,c_ubyte_p,c_ubyte_p]
-        RSA_Encrypt.restype = c_ubyte_p
-
-
-        n = (ctypes.c_ubyte*128)()
-        ctypes.memmove(n,rsa_n,128)
-
-        e = (ctypes.c_ubyte*3)()
-        ctypes.memmove(e,rsa_e,3)
-
-        ret = RSA_Encrypt(plain,length,n,e)
-        return b2a_hex(ctypes.string_at(ret,128))'''
-        
         import rsa
         ret = rsa.rsa(plain, rsa_e, rsa_n[:256], False)
-        ret = b2a_hex(ret)
-        
-        return ret
+        return b2a_hex(ret)
 
 def http_send(url,body='',exheaders='',login=False):
     global proxy_info,FetionVer
@@ -667,7 +636,7 @@ def http_send(url,body='',exheaders='',login=False):
             if code == 405:
                 retry = retry - 1
                 continue
-            if code == 421:
+            if code == 420 or code == 421:
                 raise PyFetionPiccError(code,msg)
             raise PyFetionSocketError(code,msg)
         break
@@ -684,14 +653,12 @@ def get_pic(algorithm,obj):
     pic_id = re.findall('pic-certificate id="(.+?)"',data)[0]
     pic64 = re.findall('pic="(.+?)"',data)[0]
     import base64
-    from ImageShow import show
     fname = "fetion_verify.bmp"
     pic = base64.decodestring(pic64)
     f = file(fname,"wb")
     f.write(pic)
     f.close()
-    show(fname)
-    pic_code = raw_input("\t输入验证码".decode('utf-8').encode((os.name == 'posix' and 'utf-8' or 'cp936')))
+    pic_code = raw_input("输入验证码".decode('utf-8').encode((os.name == 'posix' and 'utf-8' or 'cp936')))
     obj.verify = True
     obj.verify_info = [algorithm,pic_code,pic_id]
 
@@ -1300,7 +1267,9 @@ class PyFetion(SIPC):
             if code == 200:
                 log("register successful.")
                 break
-            elif code == 421:
+            elif code == 401:
+                continue
+            elif code == 421 or code == 420:
                 algorithm = re.findall('algorithm="(.+?)"',ret)[0]
                 get_pic(algorithm,self)
                 continue
@@ -1333,7 +1302,10 @@ class PyFetion(SIPC):
             try:
                 ret = http_send(url,login=True)
             except PyFetionPiccError,e:
-                algorithm = re.findall('algorithm="(.+?)"',e[1])[0]
+                algorithm = re.findall('algorithm="(.+?)"',e[1])
+                if algorithm:
+                    algorithm = "picc-PasswordErrorMax"
+
                 get_pic(algorithm,self)
                 url = url+"&pid="+self.verify_info[2]+"&pic="+self.verify_info[1]+"&algorithm="+algorithm
                 continue
