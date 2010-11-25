@@ -19,6 +19,7 @@ from select import select
 from Queue import Queue
 from binascii import a2b_hex,b2a_hex
 from struct import pack
+from uuid import uuid1
 
 
 FetionOnline = "400"
@@ -382,9 +383,7 @@ class SIPC():
         content = self._content 
         response = ''
         if self._lock:
-            #log("acquire lock ")
             self._lock.acquire()
-            #log("acquire lock ok ")
         log('content:'+content)
         if self.login_type == "HTTP":
             #First time t SHOULD SET AS 'i'
@@ -416,7 +415,8 @@ class SIPC():
 
         else:
             self.__tcp_send(content)
-            while response is '':
+            retry = 5
+            while retry > 0 and response == '':
                 try:
                     ret = self.__tcp_recv()
                 except socket.error,e:
@@ -430,6 +430,7 @@ class SIPC():
                     except exceptions.ValueError:
                         self.queue.put(rs)
                         continue
+                retry = retry - 1
         if self._lock:
             self._lock.release()
             #log("release lock")
@@ -447,7 +448,6 @@ class SIPC():
         if not ret:
             raise PyFetionSocketError(405,'Http error')
         response = ret.read()
-        log('response:'+response)
         self.__seq+=1
         return response
 
@@ -559,7 +559,6 @@ class SIPC():
         L = re.findall("L: (\d+)",data)
         L = [int(i) for i in L]
 
-        log('data:'+data)
         b = data.split('\r\n\r\n')
         for i in range(len(b)):
             if b[i].startswith(self.ver) and "L:" not in b[i]:
@@ -812,7 +811,7 @@ class PyFetion(SIPC):
             log("Register Failed!")
             return False
         #self.get_personal_info()
-        self.get_contactlist(response)
+        self._get_contactlist(response)
 
         self.get("PresenceV4","")
         response = self.send()
@@ -988,7 +987,7 @@ class PyFetion(SIPC):
         #log(('self.contactlist',),locals())
 
     
-    def get_contactlist(self,response):
+    def _get_contactlist(self,response):
         """get contact list
            contactlist is a dict:
            {uri:[name,mobile-no,status,type]}
@@ -1030,8 +1029,11 @@ class PyFetion(SIPC):
                     need_info.append(p[0])
 
         #ret = self.get_info(need_info)
-        log(len(self.contactlist))
-        return True
+        log(self.contactlist)
+        return self.contactlist
+
+    def get_contactlist(self):
+        return self.contactlist
 
     def get_uri(self,who):
         """get uri from fetion number"""
