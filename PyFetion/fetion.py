@@ -13,7 +13,7 @@ import sys
 import exceptions
 
 
-status = {FetionHidden:"短信在线",FetionOnline:"在线",FetionBusy:"忙碌",FetionAway:"离开",FetionOffline:"离线"}
+status = {FetionHidden:"短信",FetionOnline:"在线",FetionBusy:"忙碌",FetionAway:"离开",FetionOffline:"离线"}
 
 class fetion_recv(Thread):
     def __init__(self,phone):
@@ -177,7 +177,7 @@ class fetion_input(Thread):
                 n = int(cmd[1])
                 if n >= 0 and n < len(self.phone.contactlist):
                     self.to = self.phone.contactlist.keys()[n]
-                    self.hint = "给%s发%s:" % (self.phone.contactlist.values()[n][0],s[self.type])
+                    self.hint = "给%s发%s:" % (self.phone.contactlist[self.to][0],s[self.type])
                 else:
                     printl("编号超出好友范围")
 
@@ -216,35 +216,18 @@ class fetion_input(Thread):
             
         elif cmd[0] == "ls" or cmd[0] == "l":
             #显示好友列表
-            if not self.phone.contactlist:
+            buddys = self.phone.get_contactlist()
+            if not buddys:
                 printl("没有好友")
                 return
-            if self.phone.contactlist.values()[0] != 0:
-                pass
-            #当好友列表中昵称为空重新获取
-            else:
-                self.phone.get_contactlist()
 
-            #print self.phone.contactlist
-            c = copy(self.phone.contactlist)
-            num = len(c.items())
-            for i in c:
-                if c[i][0] == '':
-                    c[i][0] = i[4:4+9]
-            printl(status[FetionOnline])
-            for i in range(num):
-                if c[c.keys()[i]][2] != FetionHidden and c[c.keys()[i]][2] != FetionOffline:
-                    printl("%-4d%-20s" % (i,c[c.keys()[i]][0]))
+            for i in buddys:
+                if buddys[i][0] == '':
+                    buddys[i][0] = i[4:4+9]
 
-            printl(status[FetionHidden])
-            for i in range(num):
-                if c[c.keys()[i]][2] == FetionHidden:
-                    printl("%-4d%-20s" % (i,c[c.keys()[i]][0]))
+            for i in range(len(buddys)):
+                printl("%-4d%-8s%-20s" % (i,status[buddys[buddys.keys()[i]][2]],buddys[buddys.keys()[i]][0],))
 
-            printl(status[FetionOffline])
-            for i in range(num):
-                if c[c.keys()[i]][2] == FetionOffline:
-                    printl("%-4d%-20s" % (i,c[c.keys()[i]][0]))
 
 
         elif cmd[0] == "add" or cmd[0] == 'a':
