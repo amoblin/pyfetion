@@ -1,0 +1,7 @@
+迁移自cocobear.cn在google code上的pytool项目中的PyFetion子项。
+
+原项目见 http://code.google.com/p/pytool
+
+cocobear的飞信客户端，跨平台，在Windows下表现也很出色。
+
+本项目面向的是Linux下喜欢命令行使用飞信客户端的用户。
