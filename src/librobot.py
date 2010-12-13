@@ -15,8 +15,8 @@ from HTMLParser import HTMLParser
 
 from PyBistu import *
 
-from judou import argmax_seg,atom_seg,ENCODING
-from dictionary.word_dict import FooDict, SogouDict, JudouDict
+#from judou import argmax_seg,atom_seg,ENCODING
+#from dictionary.word_dict import FooDict, SogouDict, JudouDict
 
 
 userhome = os.path.expanduser('~')
@@ -192,12 +192,12 @@ class processor(fetion_recv):
             print time.strftime(ISOTIMEFORMAT)," ",nickname," search:",line
             message = search(line)
             if message == 0:
-                for DictClass in (JudouDict,):# SogouDict, FooDict):
-                    dict = DictClass()
-                    dict.load()
-                    export_word_graph = line[1]
-                    text = line[0]
-                    message = ' '.join(argmax_seg(line, dict, encoding=ENCODING, export_word_graph=export_word_graph))
+                #for DictClass in (JudouDict,):# SogouDict, FooDict):
+                #    dict = DictClass()
+                #    dict.load()
+                #    export_word_graph = line[1]
+                #    text = line[0]
+                    #message = ' '.join(argmax_seg(line, dict, encoding=ENCODING, export_word_graph=export_word_graph))
                 print message
             else:
                 self.libkeywords[to]=line

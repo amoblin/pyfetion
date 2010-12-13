@@ -136,7 +136,6 @@ class FetionRobot(Thread):
 
         self.threads.append(fetion_alive(self.phone))
 
-
 class fetion_recv(Thread):
     '''receive message'''
     def __init__(self,phone):
