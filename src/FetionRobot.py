@@ -6,6 +6,7 @@
 import sys,os,string,re
 
 from PyFetion import *
+from copy import copy
 userhome = os.path.expanduser('~')
 
 ISOTIMEFORMAT='%Y-%m-%d %H:%M:%S'
