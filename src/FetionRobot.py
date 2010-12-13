@@ -46,7 +46,7 @@ class FetionRobot(Thread):
                 t.join()
 
     def print_info(self):
-        time.sleep(2)
+        time.sleep(3)
         print "启动飞信机器人守护进程。"
         #print phone.contactlist
         c = copy(self.phone.contactlist)
@@ -157,9 +157,10 @@ class fetion_recv(Thread):
                 self.parser_cmd(e[1],e[2])
                 #self.save_chat(e[1],e[2])
             elif e[0] == "PresenceChanged":
-                if self.phone.newsip:
-                    self.welcome()
-                    self.phone.newsip=''
+                #if self.phone.newsip:
+                #    self.welcome()
+                #    self.phone.newsip=''
+                pass
             elif e[0] == "deregistered":
                 self.phone.receving = False
                 printl('')
