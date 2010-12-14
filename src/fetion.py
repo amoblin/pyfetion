@@ -68,7 +68,7 @@ class fetion_recv(Thread):
 
     def show_status(self,sip,status):
         try:
-            os.system('play resources/online.wav')
+            os.system('play ../res/online.wav 2> /tmp/fetion')
         except:
             pass
         try:
@@ -85,7 +85,7 @@ class fetion_recv(Thread):
     def show_message(self,e):
         s = {"PC":"电脑","PHONE":"手机"}
         try:
-            os.system('play resources/newmessage.wav')
+            os.system('play ../res/newmessage.wav 2> /tmp/fetion')
         except:
             pass
         try:
@@ -185,7 +185,7 @@ class CLI(cmd.Cmd):
         self.to=""
         self.type="msg"
         self.nickname = self.phone.get_personal_info()[0]
-        self.prompt = self.color(self.nickname,status[self.phone.presence]) + ">"
+        self.prompt = self.color(self.nickname,status[self.phone.presence]) + "> "
 
     def  preloop(self):
         print u"欢迎使用PyFetion!\n要获得帮助请输入help或help help.\n更多信息请访问http://code.google.com/p/pytool/\n"
@@ -205,7 +205,7 @@ class CLI(cmd.Cmd):
             print line, u' 不支持的命令!'
 
     def do_test(self,line):
-        #os.system('play resources/online.wav')
+        os.system('play ../res/online.wav 2> /tmp/fetion')
         self.prompt="jfaskdflajfklafld>"
         return
 
@@ -392,7 +392,7 @@ class CLI(cmd.Cmd):
             if len(cmd)>1:
                 self.phone.send_sms(cmd[1])
             else:
-                self.prompt = self.color(self.nickname,status[self.phone.presence]) + " [to] self>"
+                self.prompt = self.color(self.nickname,status[self.phone.presence]) + " [to] self> "
             return
 
         to = self.get_sip(num)
@@ -400,7 +400,7 @@ class CLI(cmd.Cmd):
             return
         self.to = to
         nickname = self.get_nickname(self.to)
-        self.prompt = self.color(self.nickname,status[self.phone.presence]) + " [to] " + nickname + ">"
+        self.prompt = self.color(self.nickname,status[self.phone.presence]) + " [to] " + nickname + "> "
         if len(cmd)>1:
             if self.phone.send_msg(toUTF8(cmd[1]),self.to):
                 self.save_chat(self.to,cmd[1])
@@ -431,7 +431,7 @@ class CLI(cmd.Cmd):
             if len(cmd)>1:
                 self.phone.send_sms(cmd[1])
             else:
-                self.prompt = self.color(self.nickname,status[self.phone.presence]) + " [to] self>"
+                self.prompt = self.color(self.nickname,status[self.phone.presence]) + " [to] self> "
             return
 
         to=self.get_sip(num)
