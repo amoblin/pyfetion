@@ -41,7 +41,7 @@ class fetion_recv(Thread):
             if e[0] == "PresenceChanged":
                 #在登录时BN消息(e)有可能含有多个uri 
                 for i in e[1]:
-                    if time.time() - start_time > 5:
+                    if time.time() - start_time > 10:
                         self.show_status(i[0],status[i[1]])
             elif e[0] == "Message":
                 #获得消息
@@ -51,7 +51,10 @@ class fetion_recv(Thread):
                 if e[2].startswith("!"):
                     self.parse_cmd(e[1],e[2])
                     return
-                self.show_message(e)
+                s = {"PC":"电脑","PHONE":"手机"}
+                str = "\n%s[%d]@%s 说：%s" % (self.phone.contactlist[e[1]][0],self.get_order(e[1]),s[e[3]],e[2])
+                print str
+                self.notify_message(e)
                 self.save_chat(e[1],e[2])
 
 
@@ -67,6 +70,7 @@ class fetion_recv(Thread):
         printl("停止接收消息")
 
     def show_status(self,sip,status):
+        print u"\n",self.phone.contactlist[sip][0],"[",self.get_order(sip),"]现在的状态：",status
         try:
             os.system('play ../res/online.wav 2> /tmp/fetion')
         except:
@@ -75,15 +79,14 @@ class fetion_recv(Thread):
             import pynotify
             outstr = self.phone.contactlist[sip][0]+'['+ str(self.get_order(sip)) + ']'
             pynotify.init("Some Application or Title")
-            self.notification = pynotify.Notification(outstr, status,"file:///home/laputa/Projects/pytool/PyFetion/resources/fetion.png")
+            self.notification = pynotify.Notification(outstr, status,"../res/fetion.png")
             self.notification.set_urgency(pynotify.URGENCY_NORMAL)
-            self.notification.set_timeout(1)
+            self.notification.set_timeout(1000)
             self.notification.show()
         except :
-            print u"\n",self.phone.contactlist[sip][0],"[",self.get_order(sip),"]现在的状态：",status
+            pass
 
-    def show_message(self,e):
-        s = {"PC":"电脑","PHONE":"手机"}
+    def notify_message(self,e):
         try:
             os.system('play ../res/newmessage.wav 2> /tmp/fetion')
         except:
@@ -92,12 +95,12 @@ class fetion_recv(Thread):
             import pynotify
             outstr = self.phone.contactlist[e[1]][0] + '[' + str(self.get_order(e[1])) + ']'
             pynotify.init("Some Application or Title")
-            self.notification = pynotify.Notification(outstr, e[2],"file:///home/laputa/Projects/pytool/PyFetion/resources/fetion.png")
+            self.notification = pynotify.Notification(outstr, e[2],"../res/fetion.png")
             self.notification.set_urgency(pynotify.URGENCY_NORMAL)
-            self.notification.set_timeout(1)
+            self.notification.set_timeout(1000)
             self.notification.show()
         except:
-            print self.phone.contactlist[e[1]][0],'[',self.get_order(e[1]),']@',s[e[3]],"说：",e[2]
+            pass
         
     def parse_cmd(self,to,line):
         flag = "以上信息由pyfetoin自动回复。更多指令请发送'\\help'。更多关于pyfetion的信息请访问http://code.google.com/p/pytool/"
@@ -1122,9 +1125,9 @@ def login():
                     if line.startswith("#"):
                         continue
                     if line.startswith("tel"):
-                        mobile_no = line.split("=")[1][:-1]
+                        mobile_no = line.split("=")[1].strip()
                     elif line.startswith("password"):
-                        passwd = line.split("=")[1]
+                        passwd = line.split("=")[1].strip()
                 phone = PyFetion(mobile_no,passwd,"TCP",debug="FILE")
                 return phone
             except:
@@ -1135,7 +1138,7 @@ def login():
             confile = open(config_file,'w')
             content = "#该文件由pyfetion生成，请勿随意修改\n"
             content = content +  "tel=" + mobile_no
-            content = content + "\npassword=" + passwd
+            content = content + "\npassword=" + passwd + "\n"
             confile.write(content)
             confile.close()
     phone = PyFetion(mobile_no,passwd,"TCP",debug="FILE")

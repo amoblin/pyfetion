@@ -48,7 +48,7 @@ class FetionRobot(Thread):
     def print_info(self):
         time.sleep(3)
         print "启动飞信机器人守护进程。"
-        #print phone.contactlist
+        #print self.phone.contactlist
         c = copy(self.phone.contactlist)
         num = len(c.items())
         for i in c:
@@ -85,9 +85,9 @@ class FetionRobot(Thread):
                 if line.startswith("#"):
                     continue
                 if line.startswith("tel"):
-                    mobile_no = line.split("=")[1][:-1]
+                    mobile_no = line.split("=")[1].strip()
                 elif line.startswith("password"):
-                    passwd = line.split("=")[1]
+                    passwd = line.split("=")[1].strip()
             self.phone = PyFetion(mobile_no,passwd,"TCP",debug="True")
         except:
             mobile_no = raw_input(toEcho("手机号:"))
@@ -97,7 +97,7 @@ class FetionRobot(Thread):
                 confile = open(self.file,'w')
                 content = "#该文件由pyfetion生成，请勿随意修改\n"
                 content = content +  "tel=" + mobile_no
-                content = content + "\npassword=" + passwd
+                content = content + "\npassword=" + passwd + "\n"
                 confile.write(content)
                 confile.close()
 
@@ -191,6 +191,11 @@ class fetion_recv(Thread):
         else:
             message += "Text:" + line
         print message
+
+        if self.phone.send_msg(line,to):
+            print "response success.\n"
+        else:
+            print "response failed.\n"
 
     def get_sip(self,num):
         '''get sip and nickname from phone number or order or fetion number'''
@@ -327,4 +332,3 @@ if __name__ == "__main__":
     robot.print_info()
     while(True):
         time.sleep(10)
-        pass
