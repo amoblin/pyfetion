@@ -41,7 +41,7 @@ class fetion_recv(Thread):
             if e[0] == "PresenceChanged":
                 #在登录时BN消息(e)有可能含有多个uri 
                 for i in e[1]:
-                    if time.time() - start_time > 10:
+                    if time.time() - start_time > 5:
                         self.show_status(i[0],status[i[1]])
             elif e[0] == "Message":
                 #获得消息
@@ -81,7 +81,7 @@ class fetion_recv(Thread):
             pynotify.init("Some Application or Title")
             self.notification = pynotify.Notification(outstr, status,"../res/fetion.png")
             self.notification.set_urgency(pynotify.URGENCY_NORMAL)
-            self.notification.set_timeout(1000)
+            self.notification.set_timeout(3000)
             self.notification.show()
         except :
             pass
@@ -97,7 +97,7 @@ class fetion_recv(Thread):
             pynotify.init("Some Application or Title")
             self.notification = pynotify.Notification(outstr, e[2],"../res/fetion.png")
             self.notification.set_urgency(pynotify.URGENCY_NORMAL)
-            self.notification.set_timeout(1000)
+            self.notification.set_timeout(3000)
             self.notification.show()
         except:
             pass
