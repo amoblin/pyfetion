@@ -203,11 +203,10 @@ class processor(fetion_recv):
                 self.libkeywords[to]=line
 
                 header = "你好，我是北信兔！更多帮助请输入'-h'\n"
-                title = '关键词为"' + line+ '"的'
-                message = header + title + message
+                message = header + message
                 print message
 
-        if self.phone.send_msg(message.decode('utf-8').encode('utf-8'),to):
+        if self.phone.send_msg(message,to):
             print "response success.\n"
         else:
             print "response failed.\n"

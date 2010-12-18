@@ -192,10 +192,10 @@ class fetion_recv(Thread):
             message += "Text:" + line
         print message
 
-        if self.phone.send_msg(line,to):
-            print "response success.\n"
-        else:
-            print "response failed.\n"
+        #if self.phone.send_msg(line,to):
+        #    print "response success.\n"
+        #else:
+        #    print "response failed.\n"
 
     def get_sip(self,num):
         '''get sip and nickname from phone number or order or fetion number'''
