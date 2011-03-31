@@ -12,12 +12,13 @@ import sys
 import exceptions
 import cmd,wave
 #from PIL import ImageGrab
+import ConfigParser
 
 ISOTIMEFORMAT='%Y-%m-%d %H:%M:%S'
 
 userhome = os.path.expanduser('~')
 config_folder = os.path.join(userhome,'.pyfetion')
-config_file = os.path.join(config_folder,'config.txt')
+config_file = os.path.join(config_folder,'config.ini')
 mobile_no = ""
 
 status = {FetionHidden:"短信在线",FetionOnline:"在线",FetionBusy:"忙碌",FetionAway:"离开",FetionOffline:"离线"}
@@ -855,12 +856,19 @@ def config():
     if not os.path.isdir(config_folder):
         os.mkdir(config_folder)
     if not os.path.exists(config_file):
-        file = open(config_file,'w')
-        content = "#该文件由pyfetion生成，请勿随意修改\n#tel=12345678910\n#password=123456\n"
-        content +="隐身=蓝色\n离开=青蓝色\n离线=紫红色\n忙碌=红色\n在线=绿色\n"
-        content +="颜色和linux终端码的对应参照http://www.chinaunix.net/jh/6/54256.html"
-        file.write(content)
-        file.close()
+        config = ConfigParser.ConfigParser()
+        config.add_section("ui")
+        config.set("ui","hidden","blue")
+        config.set("ui","away","blue")
+        f = open(config_file,'w')
+        config.write(f)
+        f.close()
+
+        #content = "#该文件由pyfetion生成，请勿随意修改\n#tel=12345678910\n#password=123456\n"
+        #content +="隐身=蓝色\n离开=青蓝色\n离线=紫红色\n忙碌=红色\n在线=绿色\n"
+        #content +="颜色和linux终端码的对应参照http://www.chinaunix.net/jh/6/54256.html"
+        #file.write(content)
+        #file.close()
         if not os.path.exists(config_file):
             print u'创建文件失败'
         else:
@@ -880,13 +888,10 @@ def login():
         elif len(sys.argv) == 1:
             """TODO:use config module"""
             try:
-                for line in open(config_file,'r'):
-                    if line.startswith("#"):
-                        continue
-                    if line.startswith("tel"):
-                        mobile_no = line.split("=")[1].strip()
-                    elif line.startswith("password"):
-                        passwd = line.split("=")[1].strip()
+                config = ConfigParser.ConfigParser()
+                config.read(config_file)
+                mobile_no = config.get("account","tel")
+                passwd = config.get("account","password")
                 phone = PyFetion(mobile_no,passwd,"TCP",debug=True)
                 return phone
             except:
@@ -894,10 +899,13 @@ def login():
         passwd = getpass(toEcho("口  令:"))
         save = raw_input(toEcho("是否保存手机号和密码以便下次自动登录(y/n)?"))
         if save == 'y':
-            confile = open(config_file,'w')
-            content = "#该文件由pyfetion生成，请勿随意修改\ntel=%s\npassword=%s\n"
-            confile.write(content % (mobile_no,passwd))
-            confile.close()
+            config = ConfigParser.ConfigParser()
+            config.add_section("account")
+            config.set("account","tel",mobile_no)
+            config.set("account","password",passwd)
+            f = open(config_file,'a+')
+            config.write(f)
+            f.close()
     phone = PyFetion(mobile_no,passwd,"TCP",debug=True)
     return phone
 
