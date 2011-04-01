@@ -855,6 +855,7 @@ def getpass(msg):
         ch = getch()
 
     sys.stdout.write('\n')
+    print passwd
     return passwd
     
 def config():
@@ -889,13 +890,14 @@ def login():
     '''登录设置'''
     global mobile_no
     mobile_no = passwd = None
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument('-m','--mobile')
     parser.add_argument('-p','--password')
     args = parser.parse_args()
     """
     try:
-        opts, args = getopt.getopt(sys.argv[1:],"ho:v",["help","output="])
+        opts, args = getopt.getopt(sys.argv[1:],"hpm:",["help","output="])
     except getopt.GetoptError, err:
         print str(err)
         usage()
@@ -905,32 +907,33 @@ def login():
             mobile_no = a
         elif o == "-p":
             passwd = a
+        elif o == "-h":
+            usage()
+            sys.exit(0)
         else:
             assert False, "unhandled option"
 
+    if not passwd and not mobile_no:
+        try:
+            config = ConfigParser.ConfigParser()
+            config.read(config_file)
+            mobile_no = config.get("account","tel")
+            passwd = config.get("account","password")
+        except:
+            pass
+    if not mobile_no:
+        mobile_no = raw_input(toEcho("手机号:"))
     if not passwd:
-        if not mobile_no:
-        """
-            try:
-                config = ConfigParser.ConfigParser()
-                config.read(config_file)
-                mobile_no = config.get("account","tel")
-                passwd = config.get("account","password")
-                phone = PyFetion(mobile_no,passwd,"TCP",debug=True)
-                return phone
-            except:
-                mobile_no = raw_input(toEcho("手机号:"))
         passwd = getpass(toEcho("口  令:"))
-
-    save = raw_input(toEcho("是否保存手机号和密码以便下次自动登录(y/n)?"))
-    if save == 'y':
-        config = ConfigParser.ConfigParser()
-        config.add_section("account")
-        config.set("account","tel",mobile_no)
-        config.set("account","password",passwd)
-        f = open(config_file,'a+')
-        config.write(f)
-        f.close()
+        save = raw_input(toEcho("是否保存手机号和密码以便下次自动登录(y/n)?"))
+        if save == 'y':
+            config = ConfigParser.ConfigParser()
+            config.add_section("account")
+            config.set("account","tel",mobile_no)
+            config.set("account","password",passwd)
+            f = open(config_file,'a+')
+            config.write(f)
+            f.close()
     phone = PyFetion(mobile_no,passwd,"TCP",debug="FILE")
     return phone
 
@@ -986,3 +989,4 @@ if __name__ == "__main__":
     config()
     phone = login()
     sys.exit(main(phone))
+    #getpass("input:")
