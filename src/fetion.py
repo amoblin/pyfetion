@@ -13,6 +13,11 @@ import exceptions
 import cmd,wave
 #from PIL import ImageGrab
 import ConfigParser
+import getopt
+try:
+    import argparse
+except:
+    pass
 
 ISOTIMEFORMAT='%Y-%m-%d %H:%M:%S'
 
@@ -873,20 +878,39 @@ def config():
             print u'创建文件失败'
         else:
             print u'创建文件成功'
+
+def usage():
+    print("""
+    usage: fetion.py -m 12345678910 -p password
+    """)
+    return
     
 def login():
     '''登录设置'''
     global mobile_no
-    if len(sys.argv) > 3:
-        print(u'参数错误')
-    elif len(sys.argv) == 3:
-        mobile_no = sys.argv[1]
-        passwd = sys.argv[2]
-    else:
-        if len(sys.argv) == 2:
-            mobile_no = sys.argv[1]
-        elif len(sys.argv) == 1:
-            """TODO:use config module"""
+    mobile_no = passwd = None
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-m','--mobile')
+    parser.add_argument('-p','--password')
+    args = parser.parse_args()
+    """
+    try:
+        opts, args = getopt.getopt(sys.argv[1:],"ho:v",["help","output="])
+    except getopt.GetoptError, err:
+        print str(err)
+        usage()
+        sys.exit(2)
+    for o, a in opts:
+        if o == "-m":
+            mobile_no = a
+        elif o == "-p":
+            passwd = a
+        else:
+            assert False, "unhandled option"
+
+    if not passwd:
+        if not mobile_no:
+        """
             try:
                 config = ConfigParser.ConfigParser()
                 config.read(config_file)
@@ -897,18 +921,18 @@ def login():
             except:
                 mobile_no = raw_input(toEcho("手机号:"))
         passwd = getpass(toEcho("口  令:"))
-        save = raw_input(toEcho("是否保存手机号和密码以便下次自动登录(y/n)?"))
-        if save == 'y':
-            config = ConfigParser.ConfigParser()
-            config.add_section("account")
-            config.set("account","tel",mobile_no)
-            config.set("account","password",passwd)
-            f = open(config_file,'a+')
-            config.write(f)
-            f.close()
-    phone = PyFetion(mobile_no,passwd,"TCP",debug=True)
-    return phone
 
+    save = raw_input(toEcho("是否保存手机号和密码以便下次自动登录(y/n)?"))
+    if save == 'y':
+        config = ConfigParser.ConfigParser()
+        config.add_section("account")
+        config.set("account","tel",mobile_no)
+        config.set("account","password",passwd)
+        f = open(config_file,'a+')
+        config.write(f)
+        f.close()
+    phone = PyFetion(mobile_no,passwd,"TCP",debug="FILE")
+    return phone
 
 def main(phone):
     '''main function'''
