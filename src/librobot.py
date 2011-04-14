@@ -87,8 +87,9 @@ class processor(fetion_recv):
                 message += "好友间通信：-a [序号|飞信号] [消息]\n"
                 #message += "已借图书列表：-ls\n"
                 message += "获取该帮助：-h\n"
-                message += "更多请访问http://code.google.com/p/bistu\n"
+                message += "更多请访问https://github.com/amoblin/pyfetion\n"
             elif cmd[0] == 'page' or cmd[0] == 'p':
+                """go to the certain page."""
                 if len(cmd)<2:
                     message='参数错误'
                 else:
@@ -99,6 +100,7 @@ class processor(fetion_recv):
                     else:
                         message = "参数格式错误。第二个参数应为数字，也就是你要看的页号。"
             elif cmd[0]=='b' and to=='sip:856882346@fetion.com.cn;p=5911':
+                """broadcast"""
                 if len(cmd)<2:
                     return
                 c = copy(self.phone.contactlist)
@@ -106,6 +108,7 @@ class processor(fetion_recv):
                 for i in c:
                     self.phone.send_msg(line[3:],i)
             elif cmd[0]=='q':
+                """quit session."""
                 if len(cmd)<2:
                     message='参数错误'
                 else:
@@ -118,6 +121,7 @@ class processor(fetion_recv):
                     message = " ".join(cmd[2:])
                 to = self.get_sip(cmd[1])
             elif cmd[0]=='bls':
+                """buddy list"""
                 c = copy(self.phone.contactlist)
                 num = len(c.items())
                 for i in c:
@@ -156,6 +160,7 @@ class processor(fetion_recv):
                             message += "[" + str(i) + "]" + c[c.keys()[i]][0] + " "
                     message +="\n"
             elif cmd[0]=='his':
+                """history"""
                 command_log_file = os.path.join(config_folder,"librot.log")
                 message = "".join(last_lines(command_log_file,5))
             elif cmd[0]=='u' and cmd[2]=='-p':
@@ -168,22 +173,16 @@ class processor(fetion_recv):
                     message = "参数错误。"
                     message="图书信息"
             elif cmd[0]=='binfo':
+                """buddy info"""
                 if len(cmd)<2:
                     message = "参数错误。"
                     message="好友信息"
             elif cmd[0]=='invit':
+                """invite buddy."""
                 if len(cmd)<2:
                     message = "参数错误。"
                 else:
                     message="邀请好友"
-            elif cmd[0]=='ls':
-                message=cmd[0]
-            elif cmd[0]=='ls':
-                message=cmd[0]
-            elif cmd[0]=='ls':
-                message=cmd[0]
-            elif cmd[0]=='ls':
-                message=cmd[0]
             elif cmd[0]=='ls':
                 message=cmd[0]
             else:
@@ -203,11 +202,10 @@ class processor(fetion_recv):
                 self.libkeywords[to]=line
 
                 header = "你好，我是北信兔！更多帮助请输入'-h'\n"
-                title = '关键词为"' + line+ '"的'
-                message = header + title + message
+                message = header + message
                 print message
 
-        if self.phone.send_msg(message.decode('utf-8').encode('utf-8'),to):
+        if self.phone.send_msg(message,to):
             print "response success.\n"
         else:
             print "response failed.\n"

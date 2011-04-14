@@ -8,17 +8,22 @@ from PyFetion import *
 from threading import Thread
 from time import sleep
 from copy import copy
-import time
 import sys
 import exceptions
 import cmd,wave
 #from PIL import ImageGrab
+import ConfigParser
+import getopt
+try:
+    import argparse
+except:
+    pass
 
 ISOTIMEFORMAT='%Y-%m-%d %H:%M:%S'
 
 userhome = os.path.expanduser('~')
 config_folder = os.path.join(userhome,'.pyfetion')
-config_file = os.path.join(config_folder,'config.txt')
+config_file = os.path.join(config_folder,'config.ini')
 mobile_no = ""
 
 status = {FetionHidden:"短信在线",FetionOnline:"在线",FetionBusy:"忙碌",FetionAway:"离开",FetionOffline:"离线"}
@@ -51,7 +56,10 @@ class fetion_recv(Thread):
                 if e[2].startswith("!"):
                     self.parse_cmd(e[1],e[2])
                     return
-                self.show_message(e)
+                s = {"PC":"电脑","PHONE":"手机"}
+                str = "\n%s[%d]@%s 说：%s" % (self.phone.contactlist[e[1]][0],self.get_order(e[1]),s[e[3]],e[2])
+                print str
+                self.notify_message(e)
                 self.save_chat(e[1],e[2])
 
 
@@ -67,6 +75,7 @@ class fetion_recv(Thread):
         printl("停止接收消息")
 
     def show_status(self,sip,status):
+        print u"\n",self.phone.contactlist[sip][0],"[",self.get_order(sip),"]现在的状态：",status
         try:
             os.system('play ../res/online.wav 2> /tmp/fetion')
         except:
@@ -75,15 +84,14 @@ class fetion_recv(Thread):
             import pynotify
             outstr = self.phone.contactlist[sip][0]+'['+ str(self.get_order(sip)) + ']'
             pynotify.init("Some Application or Title")
-            self.notification = pynotify.Notification(outstr, status,"file:///home/laputa/Projects/pytool/PyFetion/resources/fetion.png")
+            self.notification = pynotify.Notification(outstr, status,"../res/fetion.png")
             self.notification.set_urgency(pynotify.URGENCY_NORMAL)
-            self.notification.set_timeout(1)
+            self.notification.set_timeout(3000)
             self.notification.show()
         except :
-            print u"\n",self.phone.contactlist[sip][0],"[",self.get_order(sip),"]现在的状态：",status
+            pass
 
-    def show_message(self,e):
-        s = {"PC":"电脑","PHONE":"手机"}
+    def notify_message(self,e):
         try:
             os.system('play ../res/newmessage.wav 2> /tmp/fetion')
         except:
@@ -92,15 +100,15 @@ class fetion_recv(Thread):
             import pynotify
             outstr = self.phone.contactlist[e[1]][0] + '[' + str(self.get_order(e[1])) + ']'
             pynotify.init("Some Application or Title")
-            self.notification = pynotify.Notification(outstr, e[2],"file:///home/laputa/Projects/pytool/PyFetion/resources/fetion.png")
+            self.notification = pynotify.Notification(outstr, e[2],"../res/fetion.png")
             self.notification.set_urgency(pynotify.URGENCY_NORMAL)
-            self.notification.set_timeout(1)
+            self.notification.set_timeout(3000)
             self.notification.show()
         except:
-            print self.phone.contactlist[e[1]][0],'[',self.get_order(e[1]),']@',s[e[3]],"说：",e[2]
+            pass
         
     def parse_cmd(self,to,line):
-        flag = "以上信息由pyfetoin自动回复。更多指令请发送'\\help'。更多关于pyfetion的信息请访问http://code.google.com/p/pytool/"
+        flag = "以上信息由pyfetoin自动回复。更多指令请发送'\\help'。更多关于pyfetion的信息请访问https://github.com/amoblin/pyfetion"
         cmd = line[1:]
         print cmd
         command_log_file = os.path.join(config_folder,"command.log")
@@ -188,7 +196,7 @@ class CLI(cmd.Cmd):
         self.prompt = self.color(self.nickname,status[self.phone.presence]) + "> "
 
     def  preloop(self):
-        print u"欢迎使用PyFetion!\n要获得帮助请输入help或help help.\n更多信息请访问http://code.google.com/p/pytool/\n"
+        print u"欢迎使用PyFetion!\n要获得帮助请输入help或help help.\n更多信息请访问https://github.com/amoblin/pyfetion"
         print u"当前\033[32m在线\033[0m或\033[36m离开\033[0m或\033[31m忙碌\033[0m的好友为(ls命令可以得到下面结果)："
         self.do_ls("")
 
@@ -737,34 +745,6 @@ class CLI(cmd.Cmd):
         self.phone.logout()
         sys.exit(0)
 
-    def do_help(self,line):
-        self.clear()
-        printl("""
-------------------------基于PyFetion的一个CLI飞信客户端-------------------------
-
-        命令不区分大小写中括号里为命令的缩写
-
-        help[?]           显示本帮助信息
-        ls                列出在线好友列表
-        la                按组列出所有好友列表
-        ll                列出序号，备注，昵称，所在组，状态
-        lg                列出好友分组，带参数显示该分组的好友列表
-        status[st]        改变飞信状态 参数[0隐身 1离开 2忙碌 3在线]
-                          参数为空显示自己的状态
-        msg[m]            发送消息 参数为序号或手机号 使用quit退出
-        sms[s]            发送短信 参数为序号或手机号 使用quit退出
-                          参数为空给自己发短信
-        find[f]           查看好友是否隐身 参数为序号或手机号
-        info[i]           查看好友详细信息,无参数则显示个人信息
-        update[u]         更新状态
-        add[a]            添加好友 参数为手机号或飞信号
-        del[d]            删除好友 参数为手机号或飞信号
-        cls[c]            清屏
-        quit[q]           退出对话状态
-        exit[x]           退出飞信
-
-        """)
-
     def clear(self):
         if os.name == "posix":
             os.system("clear")
@@ -800,223 +780,12 @@ class fetion_input(Thread):
 
     def run(self):
         sleep(1)
-        #self.help()
-        #while self.phone.receving:
-        #    try:
-        #        self.hint = toEcho(self.hint)
-        #    except :
-        #        pass
-
-        #    #self.cmd(raw_input(self.hint))
         try:
             CLI(self.phone).cmdloop()
         except KeyboardInterrupt:
             self.phone.logout()
             sys.exit(0)
         printl("退出输入状态")
-
-    def cmd(self,arg):
-        global status
-
-        if not self.phone.receving:
-            return
-        cmd = arg.strip().lower().split(' ')
-        if cmd[0] == "":
-            return
-        elif cmd[0] == "quit" or cmd[0] == "q":
-            self.to = ""
-            self.hint = "PyFetion:"
-
-
-        elif self.to == "ME":
-            self.phone.send_sms(toUTF8(arg))
-
-        elif self.to:
-            if self.type == "SMS":
-                if not self.phone.send_sms(toUTF8(arg),self.to):
-                    printl("发送短信失败")
-            else:
-                if self.to in self.phone.session:
-                    self.phone.session[self.to]._send_msg(toUTF8(arg))
-                    return
-                if not self.phone.send_msg(toUTF8(arg),self.to):
-                    printl("发送消息失败")
-                
-            return
-
-        elif cmd[0] == "help" or cmd[0] == "h" or cmd[0] == '?':
-            #显示帮助信息
-            self.help()
-        elif cmd[0] == "status" or cmd[0] == "st":
-            #改变飞信的状态
-            if len(cmd) != 2:
-                printl("当前状态为[%s]" % status[self.phone.presence])
-                return
-
-            try:
-                i = int(cmd[1])
-            except exceptions.ValueError:
-                printl("当前状态为[%s]" % status[self.phone.presence])
-                return
-
-            if i >3 or i < 0:
-                printl("当前状态为[%s]" % status[self.phone.presence])
-                return
-                
-            if self.phone.presence == status.keys()[i]:
-                return
-            else:
-                self.phone.set_presence(status.keys()[i])
-                
-        elif cmd[0] == "sms" or cmd[0] == 'msg' or cmd[0] == 's' or cmd[0] == 'm' or cmd[0] == "find" or cmd[0] == 'f':
-            #发送短信或者消息
-            s = {"MSG":"消息","SMS":"短信","FIND":"查询"}
-            if len(cmd) == 1 and cmd[0].startswith('s'):
-                self.hint = "给自己发短信:"
-                self.to = "ME"
-                return
-            if len(cmd) != 2:
-                printl("命令格式:sms[msg] 编号[手机号]")
-                return
-
-            if cmd[0].startswith('s'):
-                self.type = "SMS"
-            elif cmd[0].startswith('m'):
-                self.type = "MSG"
-            else:
-                self.type = "FIND"
-            self.to   = ""
- 
-            try:
-                int(cmd[1])
-            except exceptions.ValueError:
-                if cmd[1].startswith("sip"):
-                    self.to = cmd[1]
-                    self.hint = "给%s发%s:" % (cmd[1],s[self.type])
-                else:
-                    printl("命令格式:sms[msg] 编号[手机号]")
-                    return
-           
-            c = copy(self.phone.contactlist)
-            #使用编号作为参数
-            if len(cmd[1]) < 4:
-                n = int(cmd[1])
-                if n >= 0 and n < len(self.phone.contactlist):
-                    self.to = c.keys()[n]
-                    self.hint = "给%s发%s:" % (c[self.to][0],s[self.type])
-                else:
-                    printl("编号超出好友范围")
-                    return
-
-            #使用手机号作为参数
-            elif len(cmd[1]) == 11:
-                for c in c.items():
-                    if c[1][1] == cmd[1]:
-                        self.to = c[0]
-                        self.hint = "给%s发%s:" % (c[1][0],s[self.type])
-
-                if not self.to:
-                    printl("手机号不是您的好友")
-
-            else:
-                printl("不正确的好友")
-
-
-            if self.type == "FIND":
-                #如果好友显示为在线(包括忙碌等) 则不查询
-                if self.phone.contactlist[self.to][2] != FetionHidden:
-                    printl("拜托人家写着在线你还要查!")
-                else:
-                    ret = self.phone.start_chat(self.to)
-                    if ret:
-                        if ret == c[self.to][2]:
-                            printl("该好友果然隐身")
-                        elif ret == FetionOnline:
-                            printl("该好友的确不在线哦")
-                    else:
-                        printl("获取隐身信息出错")
-
-                self.to = ""
-                self.type = "SMS"
-                self.hint  = "PyFetion:"
-                    
-            
-        elif cmd[0] == "ls" or cmd[0] == "l":
-            #显示好友列表
-            if not self.phone.contactlist:
-                printl("没有好友")
-                return
-            if self.phone.contactlist.values()[0] != 0:
-                pass
-            #当好友列表中昵称为空重新获取
-            else:
-                self.phone.get_contactlist()
-
-            #print self.phone.contactlist
-            c = copy(self.phone.contactlist)
-            num = len(c.items())
-            for i in c:
-                if c[i][0] == '':
-                    c[i][0] = i[4:4+9]
-            printl(status[FetionOnline])
-            for i in range(num):
-                if c[c.keys()[i]][2] != FetionHidden and c[c.keys()[i]][2] != FetionOffline:
-                    printl("%-4d%-20s" % (i,c[c.keys()[i]][0]))
-
-            printl(status[FetionHidden])
-            for i in range(num):
-                if c[c.keys()[i]][2] == FetionHidden:
-                    printl("%-4d%-20s" % (i,c[c.keys()[i]][0]))
-
-            printl(status[FetionOffline])
-            for i in range(num):
-                if c[c.keys()[i]][2] == FetionOffline:
-                    printl("%-4d%-20s" % (i,c[c.keys()[i]][0]))
-
-
-        elif cmd[0] == "add" or cmd[0] == 'a':
-            if len(cmd) != 2:
-                printl("命令格式:add[a] 手机号或飞信号")
-                return
-
-            if cmd[1].isdigit() and len(cmd[1]) == 9 or len(cmd[1]) == 11:
-                
-                code = self.phone.add(cmd[1])
-                if code:
-                    printl("添加%s成功"%cmd[1])
-                else:
-                    printl("添加%s失败"%cmd[1])
-                    
-            else:
-                printl("命令格式:add[a] 手机号或飞信号")
-                return
-                
-        elif cmd[0] == "del" or cmd[0] == 'd':
-            if len(cmd) != 2:
-                printl("命令格式:del[d] 手机号或飞信号")
-                return
-            if cmd[1].isdigit() and len(cmd[1]) == 9 or len(cmd[1]) == 11:
-                code = self.phone.delete(cmd[1])
-                if code:
-                    printl("删除%s成功"%cmd[1])
-                else:
-                    printl("删除%s失败"%cmd[1])
-            else:
-                printl("命令格式:del[d] 手机号或飞信号")
-                return
-
-        elif cmd[0] == "get":
-            self.phone.get_offline_msg()
-        elif cmd[0] == "cls" or cmd[0] == 'c':
-            #清屏
-            self.clear()
-
-        elif cmd[0] == "exit" or cmd[0] == 'x':
-            self.phone.logout()
-
-        else:
-            printl("不能识别的命令 请使用help")
-
 
 class progressBar(Thread):
     def __init__(self):
@@ -1086,67 +855,93 @@ def getpass(msg):
         ch = getch()
 
     sys.stdout.write('\n')
+    print passwd
     return passwd
     
 def config():
     if not os.path.isdir(config_folder):
         os.mkdir(config_folder)
     if not os.path.exists(config_file):
-        file = open(config_file,'w')
-        content = "#该文件由pyfetion生成，请勿随意修改\n#tel=12345678910\n#password=123456\n"
-        content +="隐身=蓝色\n离开=青蓝色\n离线=紫红色\n忙碌=红色\n在线=绿色\n"
-        content +="颜色和linux终端码的对应参照http://www.chinaunix.net/jh/6/54256.html"
-        file.write(content)
-        file.close()
+        config = ConfigParser.ConfigParser()
+        config.add_section("ui")
+        config.set("ui","hidden","blue")
+        config.set("ui","away","blue")
+        f = open(config_file,'w')
+        config.write(f)
+        f.close()
+
+        #content = "#该文件由pyfetion生成，请勿随意修改\n#tel=12345678910\n#password=123456\n"
+        #content +="隐身=蓝色\n离开=青蓝色\n离线=紫红色\n忙碌=红色\n在线=绿色\n"
+        #content +="颜色和linux终端码的对应参照http://www.chinaunix.net/jh/6/54256.html"
+        #file.write(content)
+        #file.close()
         if not os.path.exists(config_file):
             print u'创建文件失败'
         else:
             print u'创建文件成功'
+
+def usage():
+    print("""
+    usage: fetion.py -m 12345678910 -p password
+    """)
+    return
     
 def login():
     '''登录设置'''
     global mobile_no
-    if len(sys.argv) > 3:
-        print u'参数错误'
-    elif len(sys.argv) == 3:
-        mobile_no = sys.argv[1]
-        passwd = sys.argv[2]
-    else:
-        if len(sys.argv) == 2:
-            mobile_no = sys.argv[1]
-        elif len(sys.argv) == 1:
-            try:
-                confile = open(config_file,'r')
-                lines = confile.readlines()
-                for line in lines:
-                    if line.startswith("#"):
-                        continue
-                    if line.startswith("tel"):
-                        mobile_no = line.split("=")[1][:-1]
-                    elif line.startswith("password"):
-                        passwd = line.split("=")[1]
-                phone = PyFetion(mobile_no,passwd,"TCP",debug="FILE")
-                return phone
-            except:
-                mobile_no = raw_input(toEcho("手机号:"))
+    mobile_no = passwd = None
+    """
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-m','--mobile')
+    parser.add_argument('-p','--password')
+    args = parser.parse_args()
+    """
+    try:
+        opts, args = getopt.getopt(sys.argv[1:],"hpm:",["help","output="])
+    except getopt.GetoptError, err:
+        print str(err)
+        usage()
+        sys.exit(2)
+    for o, a in opts:
+        if o == "-m":
+            mobile_no = a
+        elif o == "-p":
+            passwd = a
+        elif o == "-h":
+            usage()
+            sys.exit(0)
+        else:
+            assert False, "unhandled option"
+
+    if not passwd and not mobile_no:
+        try:
+            config = ConfigParser.ConfigParser()
+            config.read(config_file)
+            mobile_no = config.get("account","tel")
+            passwd = config.get("account","password")
+        except:
+            pass
+    if not mobile_no:
+        mobile_no = raw_input(toEcho("手机号:"))
+    if not passwd:
         passwd = getpass(toEcho("口  令:"))
         save = raw_input(toEcho("是否保存手机号和密码以便下次自动登录(y/n)?"))
         if save == 'y':
-            confile = open(config_file,'w')
-            content = "#该文件由pyfetion生成，请勿随意修改\n"
-            content = content +  "tel=" + mobile_no
-            content = content + "\npassword=" + passwd
-            confile.write(content)
-            confile.close()
+            config = ConfigParser.ConfigParser()
+            config.add_section("account")
+            config.set("account","tel",mobile_no)
+            config.set("account","password",passwd)
+            f = open(config_file,'a+')
+            config.write(f)
+            f.close()
     phone = PyFetion(mobile_no,passwd,"TCP",debug="FILE")
     return phone
-
 
 def main(phone):
     '''main function'''
     try:
         t = progressBar()
-        t.start()
+        #t.start()
         #可以在这里选择登录的方式[隐身 在线 忙碌 离开]
         ret = phone.login(FetionHidden)
     except PyFetionSupportError,e:
@@ -1194,3 +989,4 @@ if __name__ == "__main__":
     config()
     phone = login()
     sys.exit(main(phone))
+    #getpass("input:")

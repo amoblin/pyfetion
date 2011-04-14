@@ -94,8 +94,8 @@ def search(key_words,page=1):
         page_number= re.findall(page_number_re,content)[0]
         msg = "检索结果共" + number.encode('utf-8') + "条，" + page_number.encode('utf-8')  + "页，当前在第" +curpage.encode('utf-8')  +"页:\n"
     else:
-        #msg="没有检索到你想要的记录"
-	return 0
+        msg="没有检索到关键词'%s'的记录" % key_words
+	return msg
 
 
     #print content

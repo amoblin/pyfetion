@@ -1029,7 +1029,8 @@ class PyFetion(SIPC):
                     need_info.append(p[0])
 
         #ret = self.get_info(need_info)
-        log(self.contactlist)
+        for buddy in self.contactlist:
+            log(buddy)
         return self.contactlist
 
     def get_contactlist(self):
