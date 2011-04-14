@@ -26,6 +26,7 @@ class FetionRobot(Thread):
         self.login()
         try:
             self.monitor()
+            self.print_info()
         except KeyboardInterrupt:
             self.phone.logout()
             sys.exit(0)
@@ -46,9 +47,8 @@ class FetionRobot(Thread):
                 t.join()
 
     def print_info(self):
-        time.sleep(3)
         print "启动飞信机器人守护进程。"
-        #print phone.contactlist
+        print self.phone.contactlist
         c = copy(self.phone.contactlist)
         num = len(c.items())
         for i in c:

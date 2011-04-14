@@ -229,4 +229,3 @@ if __name__ == "__main__":
     robot.print_info()
     while(True):
         time.sleep(10)
-        pass
